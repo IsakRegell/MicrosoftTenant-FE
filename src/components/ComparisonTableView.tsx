@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { DiffItem, Decision } from '@/types/diff';
 import { AlertTriangle, Info, AlertCircle, ChevronRight, ChevronDown, Check, Filter } from 'lucide-react';
@@ -179,15 +180,32 @@ export function ComparisonTableView({
                 </Label>
               </div>
               {diffs.length > 0 && onApplyAllTemplate && (
-                <Button
-                  onClick={handleApplyAllTemplate}
-                  variant="outline"
-                  className="gap-2"
-                  disabled={isLoading}
-                >
-                  <Check className="h-4 w-4" />
-                  {isLoading ? <Skeleton className="h-4 w-32" /> : "Använd alla mallvärden"}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isLoading}
+                    >
+                      <Check className="h-4 w-4" />
+                      {isLoading ? <Skeleton className="h-4 w-32" /> : "Använd alla mallvärden"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Bekräfta ändring</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Är du säker på att du vill använda alla mallvärden? Detta kommer att ersätta alla kundens värden med mallens värden där det finns skillnader.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleApplyAllTemplate}>
+                        Ja, använd alla mallvärden
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
           </div>

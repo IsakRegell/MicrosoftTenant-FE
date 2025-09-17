@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building2, Mail, Hash, History } from 'lucide-react';
+import { Save, Building2, Mail, Hash, History, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
@@ -187,6 +188,18 @@ export default function AdminPanel() {
                 </TabsList>
 
                 <TabsContent value="compare" className="mt-6">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      onClick={loadCompareData}
+                      disabled={isLoading}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                      Uppdatera data
+                    </Button>
+                  </div>
                   {/* Comparison Table View */}
                   {compareData && (
                     <ComparisonTableView
@@ -200,6 +213,17 @@ export default function AdminPanel() {
                 </TabsContent>
 
                 <TabsContent value="history" className="mt-6">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      onClick={() => {/* TODO: Load history data */}}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Uppdatera historik
+                    </Button>
+                  </div>
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">

@@ -49,30 +49,30 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
     )}>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-sidebar-foreground">Välj kund</h3>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground">×</Button>
+          <h3 className="text-sm font-semibold text-primary">Välj kund</h3>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-foreground hover:bg-accent hover:text-accent-foreground">×</Button>
         </div>
 
         <Input
           placeholder="Sök kund..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-8 bg-sidebar-accent border-sidebar-border text-sidebar-foreground placeholder:text-sidebar-foreground/60"
+          className="h-8 bg-background border-border text-foreground placeholder:text-muted-foreground"
         />
 
         {selectedCustomer && (
-          <div className="p-3 bg-sidebar-accent border border-sidebar-border rounded-lg">
-            <div className="text-xs text-sidebar-foreground/60 mb-1">Vald kund</div>
-            <div className="text-sm font-medium text-sidebar-foreground">{selectedCustomer.name}</div>
-            <div className="text-xs text-sidebar-foreground/60">{selectedCustomer.orgNumber}</div>
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="text-xs text-primary/80 mb-1 font-medium">Vald kund</div>
+            <div className="text-sm font-semibold text-primary">{selectedCustomer.name}</div>
+            <div className="text-xs text-primary/70">{selectedCustomer.orgNumber}</div>
           </div>
         )}
 
         <ScrollArea className="max-h-64">
           {loading ? (
-            <div className="text-center py-4 text-sidebar-foreground/60 text-sm">Laddar...</div>
+            <div className="text-center py-4 text-muted-foreground text-sm">Laddar...</div>
           ) : filteredCustomers.length === 0 ? (
-            <div className="text-center py-4 text-sidebar-foreground/60 text-sm">Inga kunder hittades</div>
+            <div className="text-center py-4 text-muted-foreground text-sm">Inga kunder hittades</div>
           ) : (
             <div className="space-y-1">
               {filteredCustomers.map((customer) => (
@@ -81,25 +81,25 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
                   variant="ghost"
                   onClick={() => onCustomerSelect(customer.id)}
                   className={cn(
-                    "w-full justify-start p-3 h-auto text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground min-h-[60px]",
-                    selectedCustomerId === customer.id && "bg-sidebar-primary/20 text-sidebar-primary"
+                    "w-full justify-start p-3 h-auto text-foreground hover:bg-accent hover:text-accent-foreground min-h-[60px]",
+                    selectedCustomerId === customer.id && "bg-primary/10 text-primary border border-primary/20"
                   )}
                 >
                   <div className="flex items-center gap-3 w-full">
-                    <div className="h-8 w-8 bg-sidebar-accent rounded-full flex items-center justify-center">
-                      <Building2 className="h-4 w-4 text-sidebar-foreground/60" />
+                    <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Building2 className="h-4 w-4 text-primary" />
                     </div>
                     
                     <div className="flex-1 text-left min-w-0">
-                      <div className="font-medium text-sm truncate">{customer.name}</div>
-                      <div className="text-xs text-sidebar-foreground/70 space-y-0.5">
+                      <div className="font-semibold text-sm truncate">{customer.name}</div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
                         <div className="truncate">{customer.orgNumber}</div>
                         <div className="truncate">{customer.contactEmail}</div>
                       </div>
                     </div>
 
                     {selectedCustomerId === customer.id && (
-                      <Check className="h-4 w-4 text-sidebar-primary" />
+                      <Check className="h-4 w-4 text-primary" />
                     )}
                   </div>
                 </Button>

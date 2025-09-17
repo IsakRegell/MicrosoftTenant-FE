@@ -28,7 +28,7 @@ export function ComparisonTableView({
   onApplyAllTemplate
 }: ComparisonTableViewProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [showOnlyDifferences, setShowOnlyDifferences] = useState(true);
+  const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
 
   const getSeverityIcon = (severity?: string) => {
     switch (severity) {

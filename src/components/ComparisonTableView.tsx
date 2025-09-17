@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { DiffItem, Decision } from '@/types/diff';
 import { AlertTriangle, Info, AlertCircle, ChevronRight, ChevronDown, Check, Filter } from 'lucide-react';
@@ -17,6 +18,7 @@ interface ComparisonTableViewProps {
   onDecision: (decision: Decision) => void;
   pendingDecisions: Decision[];
   onApplyAllTemplate?: () => void;
+  isLoading?: boolean;
 }
 
 export function ComparisonTableView({ 
@@ -25,7 +27,8 @@ export function ComparisonTableView({
   diffs, 
   onDecision, 
   pendingDecisions,
-  onApplyAllTemplate
+  onApplyAllTemplate,
+  isLoading = false
 }: ComparisonTableViewProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
@@ -156,17 +159,23 @@ export function ComparisonTableView({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Kunddata Jämförelse</CardTitle>
+            <CardTitle className="text-lg">
+              {isLoading ? <Skeleton className="h-6 w-48" /> : "Kunddata Jämförelse"}
+            </CardTitle>
             <div className="flex items-center gap-4">
               <div className="flex items-center space-x-2">
-                <Switch
-                  id="show-differences"
-                  checked={showOnlyDifferences}
-                  onCheckedChange={setShowOnlyDifferences}
-                />
+                {isLoading ? (
+                  <Skeleton className="h-6 w-6" />
+                ) : (
+                  <Switch
+                    id="show-differences"
+                    checked={showOnlyDifferences}
+                    onCheckedChange={setShowOnlyDifferences}
+                  />
+                )}
                 <Label htmlFor="show-differences" className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
-                  Visa endast skillnader
+                  {isLoading ? <Skeleton className="h-4 w-32" /> : "Visa endast skillnader"}
                 </Label>
               </div>
               {diffs.length > 0 && onApplyAllTemplate && (
@@ -174,16 +183,59 @@ export function ComparisonTableView({
                   onClick={handleApplyAllTemplate}
                   variant="outline"
                   className="gap-2"
+                  disabled={isLoading}
                 >
                   <Check className="h-4 w-4" />
-                  Använd alla mallvärden
+                  {isLoading ? <Skeleton className="h-4 w-32" /> : "Använd alla mallvärden"}
                 </Button>
               )}
             </div>
           </div>
         </CardHeader>
       </Card>
-      {Object.entries(groupedFields).map(([section, sectionFields]) => {
+
+      {isLoading ? (
+        // Loading skeletons
+        <div className="space-y-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-5 w-20 ml-2" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  {[1, 2, 3, 4].map((j) => (
+                    <div key={j} className="flex gap-4">
+                      <Skeleton className="h-8 w-24" />
+                      <Skeleton className="h-8 w-32" />
+                      <Skeleton className="h-8 w-32" />
+                      <Skeleton className="h-8 w-24" />
+                      <div className="flex gap-1">
+                        <Skeleton className="h-7 w-16" />
+                        <Skeleton className="h-7 w-16" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        // Actual content
+        <>
+          {Object.entries(groupedFields).map(([section, sectionFields]) => {
         const sectionDiffs = diffs.filter(d => sectionFields.includes(d.path));
         return (
         <Card key={section}>
@@ -315,7 +367,7 @@ export function ComparisonTableView({
         );
       })}
       
-      {diffs.length === 0 && (
+      {diffs.length === 0 && !isLoading && (
         <Card>
           <CardContent className="text-center py-8">
             <div className="text-muted-foreground">
@@ -324,6 +376,8 @@ export function ComparisonTableView({
             </div>
           </CardContent>
         </Card>
+      )}
+      </>
       )}
     </div>
   );

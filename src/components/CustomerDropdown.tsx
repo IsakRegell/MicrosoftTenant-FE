@@ -91,7 +91,12 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
                     </div>
                     
                     <div className="flex-1 text-left min-w-0">
-                      <div className="font-semibold text-sm truncate">{customer.name}</div>
+                      <div className={cn(
+                        "font-semibold text-sm truncate", 
+                        inline ? "text-primary font-bold" : ""
+                      )}>
+                        {customer.name}
+                      </div>
                       <div className="text-xs text-muted-foreground space-y-0.5">
                         <div className="truncate">{customer.orgNumber}</div>
                         <div className="truncate">{customer.contactEmail}</div>

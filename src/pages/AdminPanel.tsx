@@ -208,6 +208,7 @@ export default function AdminPanel() {
                       diffs={compareData.diffs}
                       onDecision={handleDecision}
                       pendingDecisions={pendingDecisions}
+                      isLoading={isLoading}
                     />
                   )}
                 </TabsContent>

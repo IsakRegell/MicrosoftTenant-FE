@@ -1,73 +1,82 @@
-# Welcome to your Lovable project
+# JSON Diff Manager
 
-## Project info
+En React + TypeScript + Vite-applikation för hantering av JSON-skillnader mellan templates och kunddata.
 
-**URL**: https://lovable.dev/projects/632f06e8-5b5b-46be-bd6c-2b8c037af066
+## Funktioner
 
-## How can I edit this code?
+- **Autentisering**: Mock-autentisering med roller (Admin/Kund) - förbered för Entra ID
+- **Admin Panel**: Kollapsbar sidebar, kundväljare, JSON-jämförelse
+- **Kund-vy**: Förenklad vy för kundanvändare
+- **JSON Split View**: Visuell jämförelse med diff-markering
+- **Beslutsbuffering**: Samla beslut och skicka i batch till backend
 
-There are several ways of editing your application.
+## Teknikstack
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: Tailwind CSS, shadcn/ui, Lucide React
+- **State**: React hooks, Context API
+- **Routing**: React Router 6 med skyddade routes
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/632f06e8-5b5b-46be-bd6c-2b8c037af066) and start prompting.
+## Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# Klona repot
+git clone <GIT_URL>
+cd json-diff-manager
 
-**Use your preferred IDE**
+# Installera dependencies
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Starta dev-server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Konfiguration
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Skapa en `.env` fil i root:
 
-**Use GitHub Codespaces**
+```bash
+VITE_API_BASE_URL=http://localhost:7134
+VITE_ENV=development
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Backend API
 
-## What technologies are used for this project?
+Applikationen förväntar sig dessa endpoints:
 
-This project is built with:
+### POST /compare/check
+```json
+{
+  "customerId": "volvo"
+}
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### POST /compare/apply
+```json
+{
+  "customerId": "volvo", 
+  "decisions": [
+    {"path": "/user/id", "action": "applyTemplate"},
+    {"path": "/user/age", "action": "keepCustomer"}
+  ]
+}
+```
 
-## How can I deploy this project?
+## Utveckling
 
-Simply open [Lovable](https://lovable.dev/projects/632f06e8-5b5b-46be-bd6c-2b8c037af066) and click on Share -> Publish.
+- **Mock-data**: Används när backend inte är tillgänglig
+- **TODO**: Entra ID-integration markerad i koden
+- **Design system**: Färger och styles definierade i `src/index.css`
 
-## Can I connect a custom domain to my Lovable project?
+## Roller
 
-Yes, you can!
+- **Admin**: Tillgång till admin panel med alla kunder
+- **Kund**: Tillgång till egen data-vy
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Diff-typer
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `typeMismatch` - Olika datatyper (röd)
+- `valueMismatch` - Olika värden (gul)  
+- `missing` - Saknad property (blå)
+- `unexpected` - Oväntad property (lila)
+- `lengthMismatch` - Array-längdskillnad (orange)

@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, Building2, Mail, Hash } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
-import { JsonSplitView } from '@/components/JsonSplitView';
+import { ComparisonTableView } from '@/components/ComparisonTableView';
 import { CompareResponse, Decision } from '@/types/diff';
 import { CustomerListItem } from '@/types/customer';
 import { compareCheck, compareApply } from '@/services/api';
@@ -171,16 +171,16 @@ export default function AdminPanel() {
                 </Card>
               )}
 
-              {/* JSON Split View */}
-              {compareData && (
-                <JsonSplitView
-                  template={compareData.template}
-                  customerData={compareData.customerData}
-                  diffs={compareData.diffs}
-                  onDecision={handleDecision}
-                  pendingDecisions={pendingDecisions}
-                />
-              )}
+          {/* Comparison Table View */}
+          {compareData && (
+            <ComparisonTableView
+              template={compareData.template}
+              customerData={compareData.customerData}
+              diffs={compareData.diffs}
+              onDecision={handleDecision}
+              pendingDecisions={pendingDecisions}
+            />
+          )}
             </div>
           )}
         </main>

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Save, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/Header';
-import { JsonSplitView } from '@/components/JsonSplitView';
+import { ComparisonTableView } from '@/components/ComparisonTableView';
 import { CompareResponse, Decision } from '@/types/diff';
 import { compareCheck, compareApply } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -169,9 +169,9 @@ export default function CustomerView() {
             </Card>
           )}
 
-          {/* JSON Split View */}
+          {/* Comparison Table View */}
           {compareData && (
-            <JsonSplitView
+            <ComparisonTableView
               template={compareData.template}
               customerData={compareData.customerData}
               diffs={compareData.diffs}

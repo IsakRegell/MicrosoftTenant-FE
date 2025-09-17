@@ -34,7 +34,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
 
       <div className="p-4 space-y-2">
         {/* Customer Section */}
-        <div className="relative">
+        <div>
           <Button
             variant="ghost"
             onClick={() => setIsCustomerDropdownOpen(!isCustomerDropdownOpen)}
@@ -47,14 +47,24 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
             {!isCollapsed && <span>Kunder</span>}
           </Button>
 
-          {/* Customer Dropdown positioned to the right of sidebar when collapsed */}
-          {isCustomerDropdownOpen && (
-            <div 
-              className={cn(
-                "absolute top-0 bg-card border border-border rounded-lg shadow-strong z-20",
-                isCollapsed ? "left-full ml-2" : "left-0 top-10 right-0"
-              )}
-            >
+          {/* Inline Customer Dropdown */}
+          {isCustomerDropdownOpen && !isCollapsed && (
+            <div className="mt-2 pl-2">
+              <CustomerDropdown
+                selectedCustomerId={selectedCustomerId}
+                onCustomerSelect={(customerId) => {
+                  onCustomerSelect(customerId);
+                  setIsCustomerDropdownOpen(false);
+                }}
+                onClose={() => setIsCustomerDropdownOpen(false)}
+                inline
+              />
+            </div>
+          )}
+
+          {/* Floating dropdown when collapsed */}
+          {isCustomerDropdownOpen && isCollapsed && (
+            <div className="absolute left-full ml-2 top-0 z-20">
               <CustomerDropdown
                 selectedCustomerId={selectedCustomerId}
                 onCustomerSelect={(customerId) => {

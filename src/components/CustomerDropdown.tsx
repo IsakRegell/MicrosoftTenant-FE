@@ -11,9 +11,10 @@ interface CustomerDropdownProps {
   selectedCustomerId?: string;
   onCustomerSelect: (customerId: string) => void;
   onClose: () => void;
+  inline?: boolean;
 }
 
-export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose }: CustomerDropdownProps) {
+export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose, inline = false }: CustomerDropdownProps) {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,7 +43,10 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
   return (
-    <div className="w-80 bg-card border border-border rounded-lg shadow-strong p-4">
+    <div className={cn(
+      "bg-card border border-border rounded-lg p-4",
+      inline ? "w-full shadow-soft" : "w-80 shadow-strong"
+    )}>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-foreground">Välj kund</h3>

@@ -50,6 +50,22 @@ export default function CustomerView() {
     });
   };
 
+  const handleApplyAllTemplate = () => {
+    if (!compareData) return;
+    
+    const allTemplateDecisions: Decision[] = compareData.diffs.map(diff => ({
+      path: diff.path,
+      action: "applyTemplate" as const
+    }));
+    
+    setPendingDecisions(allTemplateDecisions);
+    
+    toast({
+      title: "Alla mallvärden valda",
+      description: `${allTemplateDecisions.length} ändringar kommer att tillämpas`,
+    });
+  };
+
   const handleSave = async () => {
     if (pendingDecisions.length === 0) return;
     
@@ -177,6 +193,7 @@ export default function CustomerView() {
               diffs={compareData.diffs}
               onDecision={handleDecision}
               pendingDecisions={pendingDecisions}
+              onApplyAllTemplate={handleApplyAllTemplate}
             />
           )}
         </div>

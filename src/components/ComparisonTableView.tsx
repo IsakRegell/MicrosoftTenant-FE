@@ -4,9 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { DiffItem, Decision } from '@/types/diff';
-import { AlertTriangle, Info, AlertCircle, ChevronRight, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, ChevronRight, ChevronDown, Check, Filter } from 'lucide-react';
 
 interface ComparisonTableViewProps {
   template: any;
@@ -14,6 +16,7 @@ interface ComparisonTableViewProps {
   diffs: DiffItem[];
   onDecision: (decision: Decision) => void;
   pendingDecisions: Decision[];
+  onApplyAllTemplate?: () => void;
 }
 
 export function ComparisonTableView({ 
@@ -21,9 +24,11 @@ export function ComparisonTableView({
   customerData, 
   diffs, 
   onDecision, 
-  pendingDecisions 
+  pendingDecisions,
+  onApplyAllTemplate
 }: ComparisonTableViewProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [showOnlyDifferences, setShowOnlyDifferences] = useState(true);
 
   const getSeverityIcon = (severity?: string) => {
     switch (severity) {
@@ -58,9 +63,12 @@ export function ComparisonTableView({
   };
 
   const formatValue = (value: any): string => {
-    if (value === null || value === undefined) return 'null';
-    if (typeof value === 'string') return `"${value}"`;
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (value === null || value === undefined) return 'Inget värde';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'boolean') return value ? 'Ja' : 'Nej';
+    if (typeof value === 'number') return value.toString();
+    if (Array.isArray(value)) return `Lista med ${value.length} objekt`;
+    if (typeof value === 'object') return `Objekt med ${Object.keys(value).length} fält`;
     return String(value);
   };
 
@@ -70,13 +78,44 @@ export function ComparisonTableView({
 
   const getRecommendedAction = (diff: DiffItem): string => {
     switch (diff.type) {
-      case 'missing': return 'Lägg till från template';
+      case 'missing': return 'Lägg till från mall';
       case 'unexpected': return 'Ta bort eller behåll';
-      case 'typeMismatch': return 'Ändra typ enligt template';
-      case 'valueMismatch': return 'Uppdatera värde från template';
-      case 'lengthMismatch': return 'Justera array-längd';
+      case 'typeMismatch': return 'Ändra typ enligt mall';
+      case 'valueMismatch': return 'Uppdatera värde från mall';
+      case 'lengthMismatch': return 'Justera längd';
       default: return 'Granska manuellt';
     }
+  };
+
+  const getFieldDisplayName = (path: string): string => {
+    const fieldName = path.split('/').pop() || path;
+    // Convert camelCase and snake_case to readable format
+    return fieldName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/^\w/, c => c.toUpperCase());
+  };
+
+  const getAllDataFields = (template: any, customerData: any): string[] => {
+    const allFields = new Set<string>();
+    
+    const extractFields = (obj: any, prefix = '') => {
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        Object.keys(obj).forEach(key => {
+          const path = prefix ? `${prefix}/${key}` : `/${key}`;
+          allFields.add(path);
+          if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+            extractFields(obj[key], path);
+          }
+        });
+      }
+    };
+    
+    extractFields(template);
+    extractFields(customerData);
+    
+    return Array.from(allFields);
   };
 
   const toggleSection = (section: string) => {
@@ -89,17 +128,64 @@ export function ComparisonTableView({
     setExpandedSections(newExpanded);
   };
 
-  // Group diffs by top-level section
-  const groupedDiffs = diffs.reduce((acc, diff) => {
-    const topLevel = diff.path.split('/')[1] || 'root';
+  // Get all data fields or just differences
+  const allFields = getAllDataFields(template, customerData);
+  const fieldsToShow = showOnlyDifferences ? 
+    diffs.map(d => d.path) : 
+    allFields;
+
+  // Group fields by top-level section
+  const groupedFields = fieldsToShow.reduce((acc, path) => {
+    const topLevel = path.split('/')[1] || 'root';
     if (!acc[topLevel]) acc[topLevel] = [];
-    acc[topLevel].push(diff);
+    if (!acc[topLevel].includes(path)) {
+      acc[topLevel].push(path);
+    }
     return acc;
-  }, {} as Record<string, DiffItem[]>);
+  }, {} as Record<string, string[]>);
+
+  const handleApplyAllTemplate = () => {
+    if (onApplyAllTemplate) {
+      onApplyAllTemplate();
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {Object.entries(groupedDiffs).map(([section, sectionDiffs]) => (
+      {/* Control Panel */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Kunddata Jämförelse</CardTitle>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-differences"
+                  checked={showOnlyDifferences}
+                  onCheckedChange={setShowOnlyDifferences}
+                />
+                <Label htmlFor="show-differences" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Visa endast skillnader
+                </Label>
+              </div>
+              {diffs.length > 0 && onApplyAllTemplate && (
+                <Button
+                  onClick={handleApplyAllTemplate}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Check className="h-4 w-4" />
+                  Använd alla mallvärden
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+      {Object.entries(groupedFields).map(([section, sectionFields]) => {
+        const sectionDiffs = diffs.filter(d => sectionFields.includes(d.path));
+        return (
         <Card key={section}>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -115,10 +201,15 @@ export function ComparisonTableView({
                   <ChevronRight className="h-4 w-4" />
                 )}
               </Button>
-              <CardTitle className="text-lg capitalize">{section}</CardTitle>
+              <CardTitle className="text-lg capitalize">{getFieldDisplayName(section)}</CardTitle>
               <Badge variant="secondary" className="ml-2">
-                {sectionDiffs.length} skillnader
+                {showOnlyDifferences ? `${sectionDiffs.length} skillnader` : `${sectionFields.length} fält`}
               </Badge>
+              {sectionDiffs.length > 0 && !showOnlyDifferences && (
+                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                  {sectionDiffs.length} skillnader
+                </Badge>
+              )}
             </div>
           </CardHeader>
           
@@ -129,57 +220,65 @@ export function ComparisonTableView({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-1/6">Fält</TableHead>
-                      <TableHead className="w-1/4">Template värde</TableHead>
-                      <TableHead className="w-1/4">Ditt värde</TableHead>
+                      <TableHead className="w-1/4">Mallvärde</TableHead>
+                      <TableHead className="w-1/4">Kundens värde</TableHead>
                       <TableHead className="w-1/6">Rekommendation</TableHead>
                       <TableHead className="w-1/6">Åtgärd</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sectionDiffs.map((diff, index) => {
-                      const templateValue = getValueAtPath(template, diff.path);
-                      const customerValue = getValueAtPath(customerData, diff.path);
-                      const isPending = hasPendingDecision(diff.path);
-                      const fieldName = diff.path.split('/').pop() || diff.path;
+                    {sectionFields.map((fieldPath, index) => {
+                      const diff = sectionDiffs.find(d => d.path === fieldPath);
+                      const templateValue = getValueAtPath(template, fieldPath);
+                      const customerValue = getValueAtPath(customerData, fieldPath);
+                      const isPending = hasPendingDecision(fieldPath);
+                      const fieldName = getFieldDisplayName(fieldPath);
 
                       return (
                         <TableRow 
                           key={index}
                           className={cn(
-                            isPending && "bg-green-50 dark:bg-green-950/20"
+                            isPending && "bg-green-50 dark:bg-green-950/20",
+                            diff && "bg-yellow-50 dark:bg-yellow-950/20"
                           )}
                         >
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
-                              {getSeverityIcon(diff.severity)}
+                              {diff && getSeverityIcon(diff.severity)}
                               <span className="text-sm">{fieldName}</span>
                             </div>
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs mt-1", getSeverityColor(diff.type))}
-                            >
-                              {diff.type}
-                            </Badge>
+                            {diff && (
+                              <Badge 
+                                variant="outline" 
+                                className={cn("text-xs mt-1", getSeverityColor(diff.type))}
+                              >
+                                {diff.type}
+                              </Badge>
+                            )}
                           </TableCell>
                           
                           <TableCell>
-                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                            <div className="text-sm px-2 py-1 rounded bg-muted/50">
                               {formatValue(templateValue)}
-                            </code>
+                            </div>
                           </TableCell>
                           
                           <TableCell>
-                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                            <div className="text-sm px-2 py-1 rounded bg-muted/50">
                               {formatValue(customerValue)}
-                            </code>
+                            </div>
                           </TableCell>
                           
                           <TableCell className="text-sm text-muted-foreground">
-                            {getRecommendedAction(diff)}
+                            {diff ? getRecommendedAction(diff) : 'Ingen ändring krävs'}
                           </TableCell>
                           
                           <TableCell>
-                            {isPending ? (
+                            {!diff ? (
+                              <Badge variant="outline" className="text-green-600 border-green-600">
+                                OK
+                              </Badge>
+                            ) : isPending ? (
                               <Badge variant="outline" className="text-green-600 border-green-600">
                                 Vald
                               </Badge>
@@ -189,7 +288,7 @@ export function ComparisonTableView({
                                   size="sm"
                                   variant="outline"
                                   className="h-7 text-xs px-2"
-                                  onClick={() => onDecision({ path: diff.path, action: "applyTemplate" })}
+                                  onClick={() => onDecision({ path: fieldPath, action: "applyTemplate" })}
                                 >
                                   Ändra
                                 </Button>
@@ -197,7 +296,7 @@ export function ComparisonTableView({
                                   size="sm"
                                   variant="outline"
                                   className="h-7 text-xs px-2"
-                                  onClick={() => onDecision({ path: diff.path, action: "keepCustomer" })}
+                                  onClick={() => onDecision({ path: fieldPath, action: "keepCustomer" })}
                                 >
                                   Behåll
                                 </Button>
@@ -213,7 +312,8 @@ export function ComparisonTableView({
             </CardContent>
           )}
         </Card>
-      ))}
+        );
+      })}
       
       {diffs.length === 0 && (
         <Card>

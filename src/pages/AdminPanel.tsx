@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building2, Mail, Hash } from 'lucide-react';
+import { Save, Building2, Mail, Hash, History } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
@@ -19,6 +20,7 @@ export default function AdminPanel() {
   const [pendingDecisions, setPendingDecisions] = useState<Decision[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('compare');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -171,16 +173,51 @@ export default function AdminPanel() {
                 </Card>
               )}
 
-          {/* Comparison Table View */}
-          {compareData && (
-            <ComparisonTableView
-              template={compareData.template}
-              customerData={compareData.customerData}
-              diffs={compareData.diffs}
-              onDecision={handleDecision}
-              pendingDecisions={pendingDecisions}
-            />
-          )}
+              {/* Tabs for different views */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="compare" className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Jämför Data
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Ändringshistorik
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="compare" className="mt-6">
+                  {/* Comparison Table View */}
+                  {compareData && (
+                    <ComparisonTableView
+                      template={compareData.template}
+                      customerData={compareData.customerData}
+                      diffs={compareData.diffs}
+                      onDecision={handleDecision}
+                      pendingDecisions={pendingDecisions}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <History className="h-5 w-5" />
+                        Ändringshistorik
+                      </CardTitle>
+                      <CardDescription>
+                        Här kommer du att kunna se alla ändringar som har gjorts för denna kund
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        Ändringshistorik kommer att implementeras när databasen är ansluten
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </main>

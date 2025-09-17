@@ -44,13 +44,13 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
 
   return (
     <div className={cn(
-      "bg-sidebar-background border border-sidebar-border rounded-lg p-4 backdrop-blur-sm",
+      "bg-sidebar-background/95 backdrop-blur-sm border border-sidebar-border rounded-lg p-4",
       inline ? "w-full shadow-soft" : "w-80 shadow-strong z-50"
     )}>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-sidebar-foreground">Välj kund</h3>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-sidebar-foreground hover:bg-sidebar-accent">×</Button>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground">×</Button>
         </div>
 
         <Input
@@ -81,7 +81,7 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
                   variant="ghost"
                   onClick={() => onCustomerSelect(customer.id)}
                   className={cn(
-                    "w-full justify-start p-3 h-auto text-sidebar-foreground hover:bg-sidebar-accent",
+                    "w-full justify-start p-3 h-auto text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground min-h-[60px]",
                     selectedCustomerId === customer.id && "bg-sidebar-primary/20 text-sidebar-primary"
                   )}
                 >
@@ -90,10 +90,11 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
                       <Building2 className="h-4 w-4 text-sidebar-foreground/60" />
                     </div>
                     
-                    <div className="flex-1 text-left">
-                      <div className="font-medium text-sm">{customer.name}</div>
-                      <div className="text-xs text-sidebar-foreground/60">
-                        {customer.orgNumber} • {customer.contactEmail}
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="font-medium text-sm truncate">{customer.name}</div>
+                      <div className="text-xs text-sidebar-foreground/70 space-y-0.5">
+                        <div className="truncate">{customer.orgNumber}</div>
+                        <div className="truncate">{customer.contactEmail}</div>
                       </div>
                     </div>
 

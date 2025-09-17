@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CustomerDropdown } from './CustomerDropdown';
@@ -15,7 +15,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
 
   return (
     <div className={cn(
-      "bg-gradient-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 relative",
+      "bg-gradient-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 relative min-h-screen",
       isCollapsed ? "w-14" : "w-64"
     )}>
       {/* Collapse/Expand Button */}
@@ -26,9 +26,9 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
         className="absolute -right-3 top-6 h-6 w-6 rounded-full bg-card border border-border shadow-medium hover:bg-accent z-10"
       >
         {isCollapsed ? (
-          <ChevronRight className="h-3 w-3 text-foreground" />
+          <PanelLeftOpen className="h-3 w-3 text-foreground" />
         ) : (
-          <ChevronLeft className="h-3 w-3 text-foreground" />
+          <PanelLeftClose className="h-3 w-3 text-foreground" />
         )}
       </Button>
 

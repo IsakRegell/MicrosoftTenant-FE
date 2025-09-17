@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import DbStatusIcon from "@/components/DbStatusIcon";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -19,6 +20,10 @@ export function Header() {
         <div className="bg-muted px-2 py-1 rounded text-xs text-muted-foreground">
           Mock/Dev
         </div>
+      </div>
+
+      <div className="flex-1 flex justify-center">
+        <DbStatusIcon />
       </div>
 
       <div className="flex items-center gap-3">

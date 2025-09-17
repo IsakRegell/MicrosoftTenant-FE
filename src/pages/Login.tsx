@@ -7,11 +7,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/admin" replace />;
+    const redirectTo = user?.role === 'admin' ? '/admin' : '/customer';
+    return <Navigate to={redirectTo} replace />;
   }
 
   const handleLogin = async (role: UserRole) => {

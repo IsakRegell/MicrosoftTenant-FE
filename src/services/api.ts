@@ -1,177 +1,212 @@
-import { CompareResponse, Decision } from '@/types/diff';
+// src/services/api.ts
+import type { DiffItem, CompareResponse, Decision } from "@/types/diff";
 
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:7134";
+// 1) Bas-URL (från .env). Tar bort ev. trailing slash.
+const BASE =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
+  "https://localhost:7216"; // fallback om .env saknas
 
-export async function compareCheck(customerId: string): Promise<CompareResponse> {
-  try {
-    const res = await fetch(`${BASE}/compare/check`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customerId })
-    });
-    if (!res.ok) throw new Error("compare/check failed");
-    return res.json();
-  } catch (error) {
-    console.warn("Backend not available, using mock data");
-    return getMockCompareResponse(customerId);
+// 2) Hjälpare: JSONPath "$.user.items[0].price" → "/user/items/0/price"
+const toSlashPath = (p: string): string =>
+  (p || "")
+    .replace(/^\$\./, "/")        // "$." → "/"
+    .replace(/\[(\d+)\]/g, "/$1") // [0] → /0
+    .replace(/\./g, "/");         // "." → "/"
+
+// 3) Liten fetch-helper med bättre felutskrifter (används där vi INTE vill tillåta 404)
+async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} @ ${String(input)}\n${text}`);
   }
+  try { return (await res.json()) as T; } catch { return {} as T; }
 }
 
-export async function compareApply(customerId: string, decisions: Decision[]): Promise<CompareResponse> {
-  try {
-    const res = await fetch(`${BASE}/compare/apply`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customerId, decisions })
-    });
-    if (!res.ok) throw new Error("compare/apply failed");
-    return res.json();
-  } catch (error) {
-    console.warn("Backend not available, simulating apply");
-    return getMockApplyResponse(customerId, decisions);
-  }
-}
+// 4) Normalisera serversvar → FE:s CompareResponse (framförallt paths + typnamn)
+//    ✅ VIKTIGT: backend skickar "kind" men FE-typen heter "type". Vi mappar om här.
+function normalize(server: any): CompareResponse {
+  const rawDiffs: any[] = Array.isArray(server?.diffs) ? server.diffs : [];
 
-// MOCK START - Remove when backend is ready
-function getMockCompareResponse(customerId: string): CompareResponse {
-  const template = {
-    user: {
-      id: "template-user",
-      name: "Template User",
-      age: 30,
-      email: "user@template.com",
-      settings: {
-        theme: "light",
-        notifications: true,
-        language: "sv"
-      },
-      permissions: ["read", "write"]
-    },
-    application: {
-      version: "1.0.0",
-      features: ["feature1", "feature2"]
-    }
-  };
-
-  const customerData = customerId === "volvo" ? {
-    user: {
-      id: "volvo-123",
-      name: "Volvo User", 
-      age: "35", // Type mismatch - string instead of number
-      email: "user@volvo.com",
-      settings: {
-        theme: "dark", // Value mismatch
-        notifications: true,
-        language: "sv",
-        customOption: "volvo-specific" // Unexpected property
-      },
-      permissions: ["read"] // Length mismatch - missing write
-    },
-    application: {
-      version: "1.0.0",
-      features: ["feature1", "feature2", "volvo-feature"] // Length mismatch
-    }
-  } : {
-    user: {
-      id: "scania-456",
-      name: "Scania User",
-      age: 28,
-      // Missing email property
-      settings: {
-        theme: "light",
-        notifications: false, // Value mismatch
-        language: "en" // Value mismatch
-      },
-      permissions: ["read", "write", "admin"] // Length mismatch
-    },
-    application: {
-      version: "1.1.0", // Value mismatch
-      features: ["feature1"] // Length mismatch
-    }
-  };
-
-  const diffs = customerId === "volvo" ? [
-    {
-      path: "/user/age",
-      type: "typeMismatch" as const,
-      expected: 30,
-      actual: "35",
-      severity: "error" as const,
-      suggestion: "applyTemplate"
-    },
-    {
-      path: "/user/settings/theme",
-      type: "valueMismatch" as const,
-      expected: "light",
-      actual: "dark",
-      severity: "warn" as const
-    },
-    {
-      path: "/user/settings/customOption",
-      type: "unexpected" as const,
-      actual: "volvo-specific",
-      severity: "info" as const
-    },
-    {
-      path: "/user/permissions",
-      type: "lengthMismatch" as const,
-      expected: ["read", "write"],
-      actual: ["read"],
-      severity: "warn" as const
-    }
-  ] : [
-    {
-      path: "/user/email",
-      type: "missing" as const,
-      expected: "user@template.com",
-      severity: "error" as const,
-      suggestion: "copyFromTemplate"
-    },
-    {
-      path: "/user/settings/notifications",
-      type: "valueMismatch" as const,
-      expected: true,
-      actual: false,
-      severity: "warn" as const
-    },
-    {
-      path: "/user/settings/language",
-      type: "valueMismatch" as const,
-      expected: "sv",
-      actual: "en",
-      severity: "info" as const
-    },
-    {
-      path: "/application/version",
-      type: "valueMismatch" as const,
-      expected: "1.0.0",
-      actual: "1.1.0",
-      severity: "warn" as const
-    }
-  ];
-
-  return { template, customerData, diffs };
-}
-
-function getMockApplyResponse(customerId: string, decisions: Decision[]): CompareResponse {
-  // Simulate applying decisions and return updated data
-  const mockResponse = getMockCompareResponse(customerId);
-  
-  // Apply decisions to customer data (simplified simulation)
-  let updatedCustomerData = { ...mockResponse.customerData };
-  let updatedDiffs = [...mockResponse.diffs];
-
-  decisions.forEach(decision => {
-    if (decision.action === "applyTemplate") {
-      // Remove the diff since it's been resolved
-      updatedDiffs = updatedDiffs.filter(diff => diff.path !== decision.path);
-    }
-  });
+  const diffs: DiffItem[] = rawDiffs.map((d: any) => ({
+    path: toSlashPath(String(d.path ?? "")),
+    type: (d.type ?? d.kind ?? "valueMismatch") as DiffItem["type"], // ← mappar kind → type
+    expected: d.expected,
+    actual: d.actual,
+    severity: d.severity,
+    suggestion: d.suggestion,
+  }));
 
   return {
-    template: mockResponse.template,
-    customerData: updatedCustomerData,
-    diffs: updatedDiffs
+    template: server?.template ?? server?.body ?? {},
+    customerData: server?.customerData ?? server?.payload ?? {},
+    diffs,
+    status: server?.status ?? (diffs.length ? "differences" : "ok"),
   };
 }
-// MOCK END
+
+// ----------------------------------------------------------------------
+// PUBLIC API
+// ----------------------------------------------------------------------
+
+/**
+ * Hämta templaten för en kund.
+ * - Provar kunden först.
+ * - Om 404 → faller tillbaka till "default".
+ */
+export async function getTemplate(customerId: string, signal?: AbortSignal): Promise<any> {
+  const url = `${BASE}/Compare/actual-template?customerId=${encodeURIComponent(customerId)}`;
+
+  // 1) Prova kundens template
+  const res = await fetch(url, { signal });
+
+  if (res.ok) {
+    const server = await res.json();
+    return server?.body ?? server ?? {};
+  }
+
+  // 2) Om saknas → hämta default istället
+  if (res.status === 404 && customerId !== "default") {
+    const fb = await fetch(`${BASE}/Compare/actual-template?customerId=default`, { signal });
+    if (fb.ok) {
+      const server = await fb.json();
+      return server?.body ?? server ?? {};
+    }
+  }
+
+  // 3) Övriga fel → kasta
+  const text = await res.text().catch(() => "");
+  throw new Error(`template failed: ${res.status} ${res.statusText}\n${text}`);
+}
+
+/**
+ * Jämför payload mot aktiv template för kund och få diffs.
+ * POST /Compare/check-payload?customerId=...
+ */
+export async function compareCheck(
+  customerId: string,
+  payload: Record<string, unknown> = {},
+  signal?: AbortSignal
+): Promise<CompareResponse> {
+  // 1) Hämta template med vår GET-fallback (du har redan detta)
+  const template = await getTemplate(customerId, signal);
+  console.log("template keys:", Object.keys(template));
+
+  // 2) Försök POSTa mot kunden
+  const url = `${BASE}/Compare/check-payload?customerId=${encodeURIComponent(customerId)}`;
+  let res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+    signal,
+  });
+
+  // 3) Om 404 → prova default
+  if (res.status === 404 && customerId !== "default") {
+    const fbUrl = `${BASE}/Compare/check-payload?customerId=default`;
+    console.warn("diff POST 404 → fallback to default");
+    res = await fetch(fbUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload }),
+      signal,
+    });
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`diff failed: HTTP ${res.status} ${res.statusText}\n${text}`);
+  }
+
+  const diffBody = await res.json().catch(() => ({}));
+  return normalize({
+    template,
+    payload,
+    diffs: Array.isArray(diffBody?.diffs) ? diffBody.diffs : [],
+    status: diffBody?.status,
+  });
+}
+
+/**
+ * (Frivillig – använd bara om din backend har denna route)
+ * POST /Compare/apply-decisions?customerId=...
+ */
+export async function compareApply(
+  customerId: string,
+  decisions: Decision[],
+  payload?: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<CompareResponse> {
+  const url = `${BASE}/Compare/apply-decisions?customerId=${encodeURIComponent(customerId)}`;
+
+  const server = await http<any>(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload ? { decisions, payload } : { decisions }),
+    signal,
+  });
+
+  return normalize(server);
+}
+
+// 1. Hämta sparad payload för en kund
+export async function getPayload(customerId: string) {
+  const res = await fetch(`${BASE}/api/payloads/by-customer?customerId=${encodeURIComponent(customerId)}`);
+  if (!res.ok) throw new Error(`getPayload ${res.status}`);
+  return res.json() as Promise<{ customerId: string; body: unknown; updatedAt?: string }>;
+}
+
+// 2. Spara/Uppdatera payload för en kund.
+export async function savePayload(customerId: string, body: unknown) {
+  const res = await fetch(`${BASE}/api/payloads/upsert?customerId=${encodeURIComponent(customerId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`savePayload ${res.status}`);
+  return res.json() as Promise<{ message: string; customerId: string }>;
+}
+
+// 4. Hämta aktiv template för kund
+export async function getActualTemplate(customerId: string) {
+  const res = await fetch(`${BASE}/Compare/actual-template?customerId=${encodeURIComponent(customerId)}`);
+  if (!res.ok) throw new Error(`getActualTemplate ${res.status}`);
+  return res.json() as Promise<{ body: unknown; optionalPaths: string[]; ignorePaths: string[] }>;
+}
+
+// ✅ CompareSavedResponse använder den *gemensamma* DiffItem-typen
+export type CompareSavedResponse = {
+  status: "ok" | "differences";
+  diffs: DiffItem[];
+  template: any;      // JSON från backend
+  customerData: any;  // DB-payload
+};
+
+// ✅ Använd BASE och returnera CompareSavedResponse
+export async function compareSaved(customerId: string): Promise<CompareSavedResponse> {
+  const res = await fetch(`${BASE}/Compare/check-saved?customerId=${encodeURIComponent(customerId)}`, {
+    method: "POST", // Controller har [HttpPost("check-saved")]
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const server = await res.json();
+  // Normalisera till CompareResponse först (för att få path/type mappning rätt),
+  // och returnera i CompareSavedResponse-form.
+  const normalized = normalize(server);
+  return {
+    status: normalized.status ?? "ok",
+    diffs: normalized.diffs,
+    template: normalized.template,
+    customerData: normalized.customerData,
+  };
+}
+
+export async function getActualPayload(customerId: string): Promise<{ body: any; updatedAt?: string }> {
+  const res = await fetch(`${BASE}/Compare/actual-payload?customerId=${encodeURIComponent(customerId)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`getActualPayload ${res.status}`);
+  const data = await res.json();
+  return { body: data?.body ?? {}, updatedAt: data?.updatedAt };
+}
+

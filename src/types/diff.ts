@@ -1,21 +1,32 @@
-export type DiffType = "typeMismatch" | "valueMismatch" | "missing" | "unexpected" | "lengthMismatch";
+// src/types/diff.ts
+
+export type DiffType =
+  | "missing"
+  | "unexpected"
+  | "typeMismatch"
+  | "valueMismatch"
+  | "lengthMismatch";
+
+export type Severity = "info" | "warn" | "error";
 
 export interface DiffItem {
-  path: string;              // JSON Pointer, t.ex. "/user/id"
+  path: string;             // ex: "/user/age"
   type: DiffType;
-  expected?: any;
-  actual?: any;
-  severity?: "info" | "warn" | "error";
-  suggestion?: string;       // ex: "copyFromTemplate"
+  expected?: unknown;
+  actual?: unknown;
+  severity?: Severity;
+  suggestion?: "applyTemplate" | "copyFromTemplate";
 }
 
+export type Decision = {
+  path: string;
+  action: "applyTemplate" | "keepCustomer";
+};
+
+// ⬇️ Lägg till status här (gör den gärna optional)
 export interface CompareResponse {
   template: any;
   customerData: any;
   diffs: DiffItem[];
-}
-
-export interface Decision {
-  path: string;
-  action: "applyTemplate" | "keepCustomer";
+  status?: "ok" | "differences";
 }

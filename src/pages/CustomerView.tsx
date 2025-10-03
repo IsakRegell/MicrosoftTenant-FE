@@ -111,8 +111,8 @@ export default function CustomerView() {
       <main className="p-6 max-w-7xl mx-auto">
         <div className="space-y-6">
           {/* Header */}
-          <Card className="bg-card/80 backdrop-blur">
-            <CardHeader>
+          <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl">Din JSON-konfiguration</CardTitle>
@@ -158,8 +158,8 @@ export default function CustomerView() {
 
           {/* Diff Summary */}
           {compareData && compareData.diffs.length > 0 && (
-            <Card className="bg-card/80 backdrop-blur">
-              <CardHeader>
+            <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
                 <CardTitle className="text-lg">Sammanfattning av skillnader</CardTitle>
               </CardHeader>
               <CardContent>

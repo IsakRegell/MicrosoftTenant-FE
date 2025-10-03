@@ -189,8 +189,8 @@ export function ComparisonTableView({
   return (
     <div className="space-y-6">
       {/* Control Panel */}
-      <Card className="bg-card/80 backdrop-blur border-primary/20">
-        <CardHeader className="bg-primary/5">
+      <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">
               {isLoading ? <Skeleton className="h-6 w-48" /> : 'Kunddata Jämförelse'}
@@ -303,27 +303,27 @@ export function ComparisonTableView({
           {Object.entries(groupedFields).map(([section, sectionFields]) => {
             const sectionDiffs = diffs.filter(d => sectionFields.includes(d.path));
             return (
-              <Card key={section} className="bg-card/80 backdrop-blur border-primary/20">
-                <CardHeader className="pb-3 bg-muted/50">
-                  <div className="flex items-center gap-2">
+              <Card key={section} className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+                  <div className="flex items-center gap-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleSection(section)}
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0 hover:bg-primary/20 transition-colors duration-200 rounded-lg"
                     >
                       {expandedSections.has(section) ? (
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-5 w-5 text-primary" />
                       ) : (
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-5 w-5 text-primary" />
                       )}
                     </Button>
-                    <CardTitle className="text-lg capitalize">{getFieldDisplayName(section)}</CardTitle>
-                    <Badge variant="secondary" className="ml-2">
+                    <CardTitle className="text-lg capitalize font-semibold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{getFieldDisplayName(section)}</CardTitle>
+                    <Badge variant="secondary" className="ml-2 bg-primary/15 text-primary border-primary/30 shadow-sm">
                       {showOnlyDifferences ? `${sectionDiffs.length} skillnader` : `${sectionFields.length} fält`}
                     </Badge>
                     {sectionDiffs.length > 0 && !showOnlyDifferences && (
-                      <Badge variant="outline" className="text-orange-600 border-orange-600">
+                      <Badge variant="outline" className="text-orange-600 border-orange-500 bg-orange-50 dark:bg-orange-950/30 shadow-sm">
                         {sectionDiffs.length} skillnader
                       </Badge>
                     )}
@@ -331,16 +331,16 @@ export function ComparisonTableView({
                 </CardHeader>
 
                 {expandedSections.has(section) && (
-                  <CardContent className="bg-muted/20">
+                  <CardContent className="bg-gradient-to-b from-muted/10 to-transparent">
                     <ScrollArea className="h-96">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-primary/10 border-b-2 border-primary/20 hover:bg-primary/10">
-                            <TableHead className="w-1/6 font-semibold">Fält</TableHead>
-                            <TableHead className="w-1/4 font-semibold">Mallvärde</TableHead>
-                            <TableHead className="w-1/4 font-semibold">Kundens värde</TableHead>
-                            <TableHead className="w-1/6 font-semibold">Rekommendation</TableHead>
-                            <TableHead className="w-1/6 font-semibold">Åtgärd</TableHead>
+                          <TableRow className="bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15 border-b-2 border-primary/30 hover:bg-primary/15">
+                            <TableHead className="w-1/6 font-bold text-primary">Fält</TableHead>
+                            <TableHead className="w-1/4 font-bold text-primary">Mallvärde</TableHead>
+                            <TableHead className="w-1/4 font-bold text-primary">Kundens värde</TableHead>
+                            <TableHead className="w-1/6 font-bold text-primary">Rekommendation</TableHead>
+                            <TableHead className="w-1/6 font-bold text-primary">Åtgärd</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -370,9 +370,9 @@ export function ComparisonTableView({
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  'border-b border-border/50 transition-colors hover:bg-accent/30',
-                                  hasChoice && 'bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary',
-                                  diff && !hasChoice && 'bg-diff-value-mismatch/5 hover:bg-diff-value-mismatch/10 border-l-4 border-l-diff-value-mismatch'
+                                  'border-b border-border/50 transition-all duration-300 hover:bg-accent/40 hover:shadow-md',
+                                  hasChoice && 'bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 border-l-4 border-l-primary shadow-sm',
+                                  diff && !hasChoice && 'bg-gradient-to-r from-diff-value-mismatch/8 to-diff-value-mismatch/4 hover:from-diff-value-mismatch/12 hover:to-diff-value-mismatch/8 border-l-4 border-l-diff-value-mismatch shadow-sm'
                                 )}
                               >
                                 <TableCell className="font-medium">
@@ -391,23 +391,23 @@ export function ComparisonTableView({
                                 </TableCell>
 
                                 <TableCell>
-                                  <div className="text-sm px-3 py-2 rounded-md bg-primary/10 border border-primary/20 font-medium text-foreground shadow-sm">
+                                  <div className="text-sm px-4 py-2.5 rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/30 font-medium text-foreground shadow-md hover:shadow-lg transition-shadow duration-200">
                                     {formatValue(templateValue)}
                                   </div>
                                 </TableCell>
 
                                 <TableCell>
-                                  <div className="text-sm px-3 py-2 rounded-md bg-accent border border-border font-medium text-foreground shadow-sm">
+                                  <div className="text-sm px-4 py-2.5 rounded-lg bg-gradient-to-br from-accent to-muted border border-border/50 font-medium text-foreground shadow-md hover:shadow-lg transition-shadow duration-200">
                                     {formatValue(customerValue)}
                                   </div>
                                 </TableCell>
 
                                 <TableCell>
                                   <div className={cn(
-                                    "text-xs px-2 py-1 rounded-md inline-block font-medium",
+                                    "text-xs px-3 py-1.5 rounded-lg inline-block font-semibold shadow-sm",
                                     diff 
-                                      ? "bg-diff-value-mismatch/10 text-diff-value-mismatch border border-diff-value-mismatch/30" 
-                                      : "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30"
+                                      ? "bg-gradient-to-r from-diff-value-mismatch/15 to-diff-value-mismatch/10 text-diff-value-mismatch border border-diff-value-mismatch/40" 
+                                      : "bg-gradient-to-r from-green-500/15 to-green-500/10 text-green-700 dark:text-green-400 border border-green-500/40"
                                   )}>
                                     {diff ? getRecommendedAction(diff) : 'Ingen ändring krävs'}
                                   </div>

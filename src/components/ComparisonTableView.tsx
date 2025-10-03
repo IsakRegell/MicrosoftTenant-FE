@@ -335,12 +335,12 @@ export function ComparisonTableView({
                     <ScrollArea className="h-96">
                       <Table>
                         <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-1/6">Fält</TableHead>
-                            <TableHead className="w-1/4">Mallvärde</TableHead>
-                            <TableHead className="w-1/4">Kundens värde</TableHead>
-                            <TableHead className="w-1/6">Rekommendation</TableHead>
-                            <TableHead className="w-1/6">Åtgärd</TableHead>
+                          <TableRow className="bg-accent/50 border-b-2 border-primary/10">
+                            <TableHead className="w-1/6 font-semibold">Fält</TableHead>
+                            <TableHead className="w-1/4 font-semibold">Mallvärde</TableHead>
+                            <TableHead className="w-1/4 font-semibold">Kundens värde</TableHead>
+                            <TableHead className="w-1/6 font-semibold">Rekommendation</TableHead>
+                            <TableHead className="w-1/6 font-semibold">Åtgärd</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -370,14 +370,15 @@ export function ComparisonTableView({
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  hasChoice && 'bg-green-50 dark:bg-green-950/20',
-                                  diff && 'bg-yellow-50 dark:bg-yellow-950/20'
+                                  'border-b border-border/50 transition-colors hover:bg-accent/30',
+                                  hasChoice && 'bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary',
+                                  diff && !hasChoice && 'bg-diff-value-mismatch/5 hover:bg-diff-value-mismatch/10 border-l-4 border-l-diff-value-mismatch'
                                 )}
                               >
                                 <TableCell className="font-medium">
                                   <div className="flex items-center gap-2">
                                     {diff && getSeverityIcon(diff.severity)}
-                                    <span className="text-sm">{fieldName}</span>
+                                    <span className="text-sm font-semibold">{fieldName}</span>
                                   </div>
                                   {diff && (
                                     <Badge
@@ -390,19 +391,26 @@ export function ComparisonTableView({
                                 </TableCell>
 
                                 <TableCell>
-                                  <div className="text-sm px-2 py-1 rounded bg-muted/50">
+                                  <div className="text-sm px-3 py-2 rounded-md bg-primary/10 border border-primary/20 font-medium text-foreground shadow-sm">
                                     {formatValue(templateValue)}
                                   </div>
                                 </TableCell>
 
                                 <TableCell>
-                                  <div className="text-sm px-2 py-1 rounded bg-muted/50">
+                                  <div className="text-sm px-3 py-2 rounded-md bg-accent border border-border font-medium text-foreground shadow-sm">
                                     {formatValue(customerValue)}
                                   </div>
                                 </TableCell>
 
-                                <TableCell className="text-sm text-muted-foreground">
-                                  {diff ? getRecommendedAction(diff) : 'Ingen ändring krävs'}
+                                <TableCell>
+                                  <div className={cn(
+                                    "text-xs px-2 py-1 rounded-md inline-block font-medium",
+                                    diff 
+                                      ? "bg-diff-value-mismatch/10 text-diff-value-mismatch border border-diff-value-mismatch/30" 
+                                      : "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30"
+                                  )}>
+                                    {diff ? getRecommendedAction(diff) : 'Ingen ändring krävs'}
+                                  </div>
                                 </TableCell>
 
                                 <TableCell>

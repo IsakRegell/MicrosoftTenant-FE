@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { CustomerListItem } from "@/types/customer";
+import { getActiveCustomers, getInactiveCustomers } from "@/services/customers";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 interface SidebarProps {
   selectedCustomerId?: string;
@@ -13,42 +15,98 @@ interface SidebarProps {
 export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
-  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
 
+  // separata listor
+  const [activeCustomers, setActiveCustomers] = useState<CustomerListItem[]>([]);
+  const [inactiveCustomers, setInactiveCustomers] = useState<CustomerListItem[]>([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
+
+  // customerId -> objectId (för korrekt DELETE)
+  const [idToObjectId, setIdToObjectId] = useState<Record<string, string>>({});
+
+  // confirm-dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<CustomerListItem | null>(null);
+
+  // Hämta aktiva direkt
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
-        // ✅ Hämta listItems (har fältet `id` som AdminPanel/Sidebar använder)
-        const { listCustomers } = await import("@/services/customers");
-        const data = await listCustomers();
-        setCustomers(data);
+        const activesRaw = await getActiveCustomers();
+        const map: Record<string, string> = {};
+        const actives = activesRaw.map((c) => {
+          map[c.customerId ?? ""] = c.objectId;
+          return {
+            id: c.customerId!,
+            customerId: c.customerId!,
+            name: c.name,
+            orgNumber: c.orgNumber,
+            contactEmail: c.contactEmail,
+            isActive: true,
+          } as CustomerListItem;
+        });
+        setActiveCustomers(actives);
+        setIdToObjectId((prev) => ({ ...prev, ...map }));
       } catch (e) {
-        console.error("Failed to load customers:", e);
+        console.error("Failed to load active customers:", e);
       }
-    };
-    load();
+    })();
   }, []);
 
-  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
-  const activeCustomers = customers.filter((c) => c.isActive !== false);
-  const inactiveCustomers = customers.filter((c) => c.isActive === false);
+  // Hämta inaktiva när togglen slås på
+  useEffect(() => {
+    if (!showInactive || loadingInactive || inactiveCustomers.length > 0) return;
+    setLoadingInactive(true);
+    (async () => {
+      try {
+        const inactivesRaw = await getInactiveCustomers();
+        const map: Record<string, string> = {};
+        const inactives = inactivesRaw.map((c) => {
+          map[c.customerId ?? ""] = c.objectId;
+          return {
+            id: c.customerId!,
+            customerId: c.customerId!,
+            name: c.name,
+            orgNumber: c.orgNumber,
+            contactEmail: c.contactEmail,
+            isActive: false,
+          } as CustomerListItem;
+        });
+        setInactiveCustomers(inactives);
+        setIdToObjectId((prev) => ({ ...prev, ...map }));
+      } catch (e) {
+        console.error("Failed to load inactive customers:", e);
+      } finally {
+        setLoadingInactive(false);
+      }
+    })();
+  }, [showInactive, loadingInactive, inactiveCustomers.length]);
 
-  const handleDelete = async (customer: CustomerListItem) => {
-    const input = prompt(
-      `Är du säker på att du vill radera ${customer.name}? Skriv "ja-tabort!" för att bekräfta.`
-    );
-    if (input !== "ja-tabort!") return;
+  const allCustomers = [...activeCustomers, ...inactiveCustomers];
+  const selectedCustomer = allCustomers.find((c) => c.id === selectedCustomerId);
 
+  // ——— RADERA: UI-modal istället för window.prompt ———
+  const askDelete = (customer: CustomerListItem) => {
+    setToDelete(customer);
+    setConfirmOpen(true);
+  };
+
+  const performDelete = async () => {
+    if (!toDelete) return;
     try {
       const { deleteCustomer } = await import("@/services/customers");
-      // ✅ I din service är listItem.id = objectId → funkar för DELETE
-      await deleteCustomer(customer.id);
-      setCustomers((prev) => prev.filter((c) => c.id !== customer.id));
-      if (selectedCustomerId === customer.id) onCustomerSelect("");
-      alert(`Kund ${customer.name} borttagen.`);
+      const objectId = idToObjectId[toDelete.id] ?? toDelete.id; // customerId -> objectId
+      await deleteCustomer(objectId);
+
+      setActiveCustomers(prev => prev.filter(c => c.id !== toDelete.id));
+      setInactiveCustomers(prev => prev.filter(c => c.id !== toDelete.id));
+      if (selectedCustomerId === toDelete.id) onCustomerSelect("");
     } catch (err) {
       console.error(err);
       alert("Misslyckades att ta bort kund.");
+    } finally {
+      setConfirmOpen(false);
+      setToDelete(null);
     }
   };
 
@@ -66,11 +124,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-6 h-6 w-6 rounded-full bg-card border border-border shadow-medium hover:bg-accent z-10"
       >
-        {isCollapsed ? (
-          <PanelLeftOpen className="h-3 w-3 text-foreground" />
-        ) : (
-          <PanelLeftClose className="h-3 w-3 text-foreground" />
-        )}
+        {isCollapsed ? <PanelLeftOpen className="h-3 w-3 text-foreground" /> : <PanelLeftClose className="h-3 w-3 text-foreground" />}
       </Button>
 
       <div className="p-4 space-y-3">
@@ -91,7 +145,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
           </div>
         )}
 
-        {/* Filter (bara när ej kollapsad) */}
+        {/* Filter */}
         {!isCollapsed && (
           <label className="flex items-center gap-2 px-1 select-none">
             <Switch checked={showInactive} onCheckedChange={setShowInactive} />
@@ -100,7 +154,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
           </label>
         )}
 
-        {/* Lista (endast när ej kollapsad) */}
+        {/* Lista */}
         {!isCollapsed && (
           <div className="space-y-4 mt-1">
             {/* Aktiva */}
@@ -110,7 +164,6 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
                 {activeCustomers.map((c) => (
                   <div key={c.id} className="flex items-center gap-1">
                     <Button
-                      // ✅ vald kund = secondary, annars ghost med mörk hover (inte vit)
                       variant={c.id === selectedCustomerId ? "secondary" : "ghost"}
                       onClick={() => onCustomerSelect(c.id)}
                       className={cn(
@@ -121,14 +174,12 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
                     >
                       {c.name}
                     </Button>
-
-                    {/* liten röd soptunna (1/4 storlek) */}
                     <Button
                       aria-label={`Ta bort ${c.name}`}
                       variant="destructive"
                       size="icon"
                       className="h-4 w-4 p-0"
-                      onClick={() => handleDelete(c)}
+                      onClick={() => askDelete(c)}
                     >
                       <Trash2 className="h-2 w-2" />
                     </Button>
@@ -145,32 +196,38 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
               <div>
                 <div className="text-xs font-semibold text-muted-foreground mb-1">Inaktiva</div>
                 <div className="space-y-1">
-                  {inactiveCustomers.map((c) => (
-                    <div key={c.id} className="flex items-center gap-1">
-                      <Button
-                        variant={c.id === selectedCustomerId ? "secondary" : "ghost"}
-                        onClick={() => onCustomerSelect(c.id)}
-                        className={cn(
-                          "flex-1 justify-start",
-                          c.id !== selectedCustomerId &&
-                            "hover:bg-black/25 hover:text-inherit hover:ring-1 hover:ring-gray-600/40 hover:ring-inset"
-                        )}
-                      >
-                        {c.name}
-                      </Button>
-                      <Button
-                        aria-label={`Ta bort ${c.name}`}
-                        variant="destructive"
-                        size="icon"
-                        className="h-4 w-4 p-0"
-                        onClick={() => handleDelete(c)}
-                      >
-                        <Trash2 className="h-2 w-2" />
-                      </Button>
-                    </div>
-                  ))}
-                  {inactiveCustomers.length === 0 && (
-                    <div className="text-xs text-muted-foreground">Inga inaktiva kunder.</div>
+                  {loadingInactive ? (
+                    <div className="text-xs text-muted-foreground">Laddar inaktiva…</div>
+                  ) : (
+                    <>
+                      {inactiveCustomers.map((c) => (
+                        <div key={c.id} className="flex items-center gap-1">
+                          <Button
+                            variant={c.id === selectedCustomerId ? "secondary" : "ghost"}
+                            onClick={() => onCustomerSelect(c.id)}
+                            className={cn(
+                              "flex-1 justify-start",
+                              c.id !== selectedCustomerId &&
+                                "hover:bg-black/25 hover:text-inherit hover:ring-1 hover:ring-gray-600/40 hover:ring-inset"
+                            )}
+                          >
+                            {c.name}
+                          </Button>
+                          <Button
+                            aria-label={`Ta bort ${c.name}`}
+                            variant="destructive"
+                            size="icon"
+                            className="h-4 w-4 p-0"
+                            onClick={() => askDelete(c)}
+                          >
+                            <Trash2 className="h-2 w-2" />
+                          </Button>
+                        </div>
+                      ))}
+                      {inactiveCustomers.length === 0 && (
+                        <div className="text-xs text-muted-foreground">Inga inaktiva kunder.</div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -178,6 +235,14 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
           </div>
         )}
       </div>
+
+      {/* Bekräftelse-modal */}
+      <ConfirmDeleteDialog
+        open={confirmOpen}
+        customerName={toDelete?.name ?? ""}
+        onConfirm={performDelete}
+        onClose={() => { setConfirmOpen(false); setToDelete(null); }}
+      />
     </div>
   );
 }

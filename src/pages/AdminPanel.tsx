@@ -9,32 +9,87 @@ import { cn } from '@/lib/utils';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
-import type { DiffItem, Decision } from '@/types/diff';
+import type { DiffItem, Decision, UiDecision } from '@/types/diff';
 import { CustomerListItem } from '@/types/customer';
 
-// API
+// API-funktioner
 import {
   compareApply,
-  compareSaved,
+  compareCheck,        // diffar mot payload i minnet
+  getLatestPayload,     // hämtar senaste inskickade payload
+  getActualPayload,    // hämtar sparad payload från DB
   CompareSavedResponse,
-  getTemplate,        // används för att alltid visa mallen
+  getTemplate,
 } from '@/services/api';
+
 import { listCustomers } from '@/services/customers';
 
 export default function AdminPanel() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem>();
 
+
+  // --- helpers för path-läsning/sättning ---
+function getValueAtPath(obj: any, path: string): any {
+  if (!path || path === '/') return obj;
+  const parts = path.split('/').filter(Boolean);
+  let cur = obj;
+  for (const p of parts) {
+    if (cur == null) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function applyDecisionsLocally(
+  customerData: any,
+  template: any,
+  decisions: Decision[]
+) {
+  const clone = structuredClone(customerData ?? {});
+  for (const d of decisions) {
+    if (d.action === 'applyTemplate') {
+      const templateVal = getValueAtPath(template, d.path);
+      setValueAtPath(clone, d.path, templateVal);
+    }
+    // keepCustomer = gör inget
+  }
+  return clone;
+}
+
+
+function setValueAtPath(obj: any, path: string, value: any) {
+  if (!path || path === '/') return;
+  const parts = path.split('/').filter(Boolean);
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i];
+    const nextIsIndex = /^\d+$/.test(parts[i + 1]);
+    if (cur[key] == null) {
+      cur[key] = nextIsIndex ? [] : {};
+    }
+    cur = cur[key];
+  }
+  const last = parts[parts.length - 1];
+  cur[last] = value;
+}
+
+
   // Det vi renderar i tabellen (template + customerData + diffs)
   const [compareData, setCompareData] = useState<CompareSavedResponse | null>(null);
 
-  const [pendingDecisions, setPendingDecisions] = useState<Decision[]>([]);
+  // ⬇️ Viktigt: håll UI-beslut (tillåter även 'undo' lokalt)
+  const [pendingDecisions, setPendingDecisions] = useState<UiDecision[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('compare');
 
   // Visa liten info-ruta om payload saknas
   const [missingPayload, setMissingPayload] = useState(false);
+
+  // Badge-siffror
+  const [visibleDiffCount, setVisibleDiffCount] = useState<number>(0);
+  const [rawDiffCount, setRawDiffCount] = useState<number>(0);
 
   const { toast } = useToast();
 
@@ -49,48 +104,68 @@ export default function AdminPanel() {
     }
   };
 
-  // Ladda diff + data. Vid fel (oavsett orsak) hämtar vi TEMPLATEN och renderar den.
+  // Ladda data för tabellen:
+  // 1) Hämta senaste payload (kundens värde)
+  // 2) Diffa mot aktiv template (utan att logga)
+  // 3) Vid 404 → visa endast template och info-ruta
   const loadCompareData = useCallback(async () => {
-    if (!selectedCustomerId) return;
+  if (!selectedCustomerId) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
+  try {
+    // 1) Primär källa: SPARAD payload i DB
+    let latestBody: any;
     try {
-      const data = await compareSaved(selectedCustomerId);
-      setCompareData(data);
-      setPendingDecisions([]);
-      setMissingPayload(false); // payload fanns
-    } catch (error: any) {
-      // Oavsett fel: försök åtminstone visa mallen
-      try {
-        const tpl = await getTemplate(selectedCustomerId);
-        const templateOnly: CompareSavedResponse = {
-          status: 'ok',
-          diffs: [],
-          template: tpl,
-          customerData: {}, // ingen payload
-        };
-        setCompareData(templateOnly);
-        setMissingPayload(true);   // visa lilla infon
-      } catch (innerErr) {
-        // Kunde inte ens hämta template → rensa och visa fel
-        setCompareData(null);
-        setMissingPayload(false);
-        toast({
-          title: 'Fel vid laddning',
-          description: 'Kunde inte hämta template för kunden',
-          variant: 'destructive',
-        });
-      }
-    } finally {
-      setIsLoading(false);
+      const actual = await getActualPayload(selectedCustomerId);
+      latestBody = actual.body; // ✅ sanning från DB
+    } catch {
+      // 2) Fallback: senaste logg (om ingen sparad än)
+      const latest = await getLatestPayload(selectedCustomerId);
+      latestBody = latest.body;
     }
-  }, [selectedCustomerId, toast]);
+
+    // 3) Diffa mot template utan loggning
+    const result = await compareCheck(selectedCustomerId, latestBody, undefined, { log: false });
+
+    // 4) Mata in i vyn
+    const next: CompareSavedResponse = {
+      status: result.status,
+      diffs: result.diffs as DiffItem[],
+      template: result.template,
+      customerData: latestBody,
+    };
+
+    setCompareData(next);
+    setPendingDecisions([]);
+    setMissingPayload(false);
+  } catch (error) {
+    try {
+      const tpl = await getTemplate(selectedCustomerId);
+      setCompareData({ status: 'ok', diffs: [], template: tpl, customerData: {} });
+      setPendingDecisions([]);
+      setMissingPayload(true);
+    } catch {
+      setCompareData(null);
+      setMissingPayload(false);
+      toast({
+        title: 'Fel vid laddning',
+        description: 'Kunde inte hämta template för kunden',
+        variant: 'destructive',
+      });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+}, [selectedCustomerId, toast]);
+
 
   useEffect(() => {
     if (!selectedCustomerId) {
       setCompareData(null);
       setPendingDecisions([]);
       setMissingPayload(false);
+      setVisibleDiffCount(0);
+      setRawDiffCount(0);
       return;
     }
 
@@ -98,6 +173,8 @@ export default function AdminPanel() {
     setCompareData(null);
     setPendingDecisions([]);
     setMissingPayload(false);
+    setVisibleDiffCount(0);
+    setRawDiffCount(0);
 
     // Ladda ny data
     loadCustomerData();
@@ -105,41 +182,72 @@ export default function AdminPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCustomerId]);
 
-  const handleDecision = (decision: Decision) => {
+  // ⬇️ Tar emot Ändra/Behåll/Ångra från tabellen
+  const handleDecision = (decision: UiDecision) => {
     setPendingDecisions(prev => {
+      // ta bort ev. tidigare för samma path
       const filtered = prev.filter(d => d.path !== decision.path);
+
+      // 'undo' = rensa val för den raden (lägg inte till något nytt)
+      if (decision.action === 'undo') return filtered;
+
+      // annars uppdatera/addera
       return [...filtered, decision];
     });
   };
 
   const handleSave = async () => {
-    if (!selectedCustomerId || pendingDecisions.length === 0) return;
+  if (!selectedCustomerId || !compareData) return;
 
-    setIsSaving(true);
-    try {
-      await compareApply(selectedCustomerId, pendingDecisions);
-      setPendingDecisions([]);
-      await loadCompareData(); // uppdatera vy efter apply
-      toast({
-        title: 'Sparat',
-        description: 'Ändringarna har tillämpats och visningen är uppdaterad.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Fel vid sparande',
-        description: 'Kunde inte spara ändringarna',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // 1) Skicka endast giltiga beslut
+  const toSend: Decision[] = pendingDecisions
+    .filter(d => d.action !== 'undo')
+    .map(d => ({ path: d.path, action: d.action as Decision['action'] }));
+
+  if (toSend.length === 0) return;
+
+  setIsSaving(true);
+  try {
+    // 2) Kör backend-apply och skicka med EXAKT kundobjektet du ser i UI
+    await compareApply(selectedCustomerId, toSend, compareData.customerData);
+
+    // 3) Läs tillbaka den sparade payloaden från BE (källa av sanning)
+    const { body: saved } = await getActualPayload(selectedCustomerId);
+
+    // 4) Diffa mot template utan loggning
+    const result = await compareCheck(selectedCustomerId, saved, undefined, { log: false });
+
+    // 5) Uppdatera vyn med det som faktiskt ligger i DB
+    setCompareData({
+      status: result.status,
+      diffs: result.diffs as DiffItem[],
+      template: result.template,
+      customerData: saved,
+    });
+
+    setPendingDecisions([]);
+
+    toast({
+      title: 'Sparat',
+      description: 'Ändringarna har sparats i databasen och vyn visar nu den sparade payloaden.',
+    });
+  } catch (error) {
+    toast({
+      title: 'Fel vid sparande',
+      description: 'Kunde inte spara ändringarna',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
+
+
 
   // ======================
   // TEMPLATE-PLATT VY
   // ======================
 
-  // Gör fältnamn läsbara (camelCase → “Camel case”)
   const humanizeField = (path: string) => {
     const last = path.split('/').filter(Boolean).pop() ?? path;
     return last
@@ -149,7 +257,6 @@ export default function AdminPanel() {
       .replace(/^\w/, c => c.toUpperCase());
   };
 
-  // Samma värdeformatterare som i jämförelsen
   const formatValue = (value: any): string => {
     if (value === null || value === undefined) return '–';
     if (typeof value === 'string') return value;
@@ -160,7 +267,6 @@ export default function AdminPanel() {
     return String(value);
   };
 
-  // Platta ut JSON till lista med leaf-värden (“/user/firstName” → “Isak”)
   const flattenTemplate = (obj: any, prefix = ''): Array<{ path: string; value: any }> => {
     const out: Array<{ path: string; value: any }> = [];
     const isLeaf = (v: any) =>
@@ -171,7 +277,6 @@ export default function AdminPanel() {
       typeof v === 'boolean';
 
     if (Array.isArray(obj)) {
-      // För listor: skriv en rad för listan (sammanfattning), och sedan leafs om elementen är objekt
       out.push({ path: prefix || '/', value: obj });
       obj.forEach((item, idx) => {
         const p = `${prefix}/${idx}`;
@@ -185,7 +290,6 @@ export default function AdminPanel() {
     }
 
     if (obj && typeof obj === 'object') {
-      // Skriv en rad för objektet också (sammanfattning)
       if (prefix) out.push({ path: prefix, value: obj });
       for (const key of Object.keys(obj)) {
         const p = prefix ? `${prefix}/${key}` : `/${key}`;
@@ -199,7 +303,6 @@ export default function AdminPanel() {
       return out;
     }
 
-    // Leaf
     out.push({ path: prefix || '/', value: obj });
     return out;
   };
@@ -261,11 +364,13 @@ export default function AdminPanel() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        {compareData?.diffs && compareData.diffs.length > 0 && (
-                          <Badge variant="secondary">
-                            {compareData.diffs.length} skillnader
-                          </Badge>
-                        )}
+                        <Badge
+                          variant="secondary"
+                          title={`Rå diff-count från backend: ${rawDiffCount}`}
+                        >
+                          {visibleDiffCount} skillnader
+                        </Badge>
+
                         {pendingDecisions.length > 0 && (
                           <Badge variant="outline">
                             {pendingDecisions.length} väntande ändringar
@@ -273,7 +378,7 @@ export default function AdminPanel() {
                         )}
                         <Button
                           onClick={handleSave}
-                          disabled={pendingDecisions.length === 0 || isSaving}
+                          disabled={pendingDecisions.filter(d => d.action !== 'undo').length === 0 || isSaving}
                           className="gap-2"
                         >
                           <Save className="h-4 w-4" />
@@ -286,14 +391,12 @@ export default function AdminPanel() {
               )}
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                {/* 3 flikar: Jämför / Template / Historik */}
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="compare" className="flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
                     Jämför Data
                   </TabsTrigger>
 
-                  {/* NY FLIK: TEMPLATE */}
                   <TabsTrigger value="template" className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Template
@@ -305,7 +408,6 @@ export default function AdminPanel() {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* JÄMFÖR */}
                 <TabsContent value="compare" className="mt-6">
                   <div className="flex justify-end mb-4">
                     <Button
@@ -320,7 +422,6 @@ export default function AdminPanel() {
                     </Button>
                   </div>
 
-                  {/* Info-ruta när payload saknas men mallen visas */}
                   {missingPayload && (
                     <Card className="mb-4">
                       <CardHeader>
@@ -334,21 +435,25 @@ export default function AdminPanel() {
 
                   {compareData && (
                     <ComparisonTableView
-                      template={compareData.template}          // Mallvärde (alltid)
-                      customerData={compareData.customerData}  // Tomt objekt om payload saknas
-                      diffs={(compareData.diffs ?? []) as DiffItem[]} // Tom array om payload saknas
+                      template={compareData.template}
+                      customerData={compareData.customerData}
+                      diffs={(compareData.diffs ?? []) as DiffItem[]}
                       onDecision={handleDecision}
                       pendingDecisions={pendingDecisions}
                       isLoading={isLoading}
+                      // ta emot visad/rå diff-count
+                      onVisibleCountChange={(visible, raw) => {
+                        setVisibleDiffCount(visible);
+                        setRawDiffCount(raw);
+                      }}
                     />
                   )}
                 </TabsContent>
 
-                {/* TEMPLATE-PLATT VY */}
                 <TabsContent value="template" className="mt-6">
                   <div className="flex justify-end mb-4">
                     <Button
-                      onClick={loadCompareData} // räcker, eftersom compareData.template sätts där
+                      onClick={loadCompareData}
                       disabled={isLoading}
                       variant="outline"
                       size="sm"
@@ -393,7 +498,6 @@ export default function AdminPanel() {
                   )}
                 </TabsContent>
 
-                {/* HISTORIK (placeholder) */}
                 <TabsContent value="history" className="mt-6">
                   <div className="flex justify-end mb-4">
                     <Button

@@ -1,7 +1,7 @@
 // AdminPayload.tsx
 import { useEffect, useState } from "react";
-import { getPayload, savePayload, compareSaved, getActualTemplate, type DiffItem } from '@/services/api';
-
+import { getPayload, savePayload, compareSaved, getActualTemplate } from "@/services/api";
+import type { DiffItem } from "@/types/diff";
 
 
 
@@ -126,7 +126,7 @@ export default function AdminPayload({ customerId }: {customerId: string}) {
           <ul style={{ marginTop: 8 }}>
             {diffs.map((d, i) => (
               <li key={i}>
-                <strong>{d.kind}</strong> @ <code>{d.path}</code>
+                <strong>{d.type}</strong> @ <code>{d.path}</code>
               </li>
             ))}
           </ul>

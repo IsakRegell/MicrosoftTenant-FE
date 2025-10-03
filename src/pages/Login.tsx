@@ -17,13 +17,7 @@ export default function Login() {
 
   const handleLogin = async (role: UserRole) => {
     setIsLoading(true);
-    
-    // TODO: Replace with Entra ID integration
-    // Example: await signInWithRedirect(msalInstance, loginRequest);
-    
-    // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise(r => setTimeout(r, 1000));
     login(role);
     setIsLoading(false);
   };

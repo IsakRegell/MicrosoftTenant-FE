@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { CustomerListItem } from '@/types/customer';
 import { listCustomers } from '@/services/customers';
+import { getActiveCustomers, getInactiveCustomers } from '@/services/customers';
 
 interface CustomerDropdownProps {
   selectedCustomerId?: string;
@@ -26,7 +27,8 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
   const loadCustomers = async () => {
     try {
       const data = await listCustomers();
-      setCustomers(data);
+      // 🔥 Filtrera direkt vid laddning → endast aktiva
+      setCustomers(data.filter(c => c.isActive === true));
     } catch (error) {
       console.error('Failed to load customers:', error);
     } finally {
@@ -34,6 +36,7 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
     }
   };
 
+  // Behåll sökfiltrering ovanpå de redan aktiva
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.orgNumber?.includes(searchQuery) ||
@@ -50,7 +53,14 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-primary">Välj kund</h3>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-foreground hover:bg-accent hover:text-accent-foreground">×</Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClose} 
+            className="h-6 w-6 p-0 text-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            ×
+          </Button>
         </div>
 
         <Input
@@ -76,7 +86,7 @@ export function CustomerDropdown({ selectedCustomerId, onCustomerSelect, onClose
           ) : (
             <div className="space-y-1">
               {filteredCustomers.map((customer) => (
-                  <Button
+                <Button
                   key={customer.id}
                   variant="ghost"
                   onClick={() => onCustomerSelect(customer.id)}

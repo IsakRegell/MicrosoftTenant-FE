@@ -189,8 +189,8 @@ export function ComparisonTableView({
   return (
     <div className="space-y-6">
       {/* Control Panel */}
-      <Card>
-        <CardHeader>
+      <Card className="bg-card/80 backdrop-blur border-primary/20">
+        <CardHeader className="bg-primary/5">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">
               {isLoading ? <Skeleton className="h-6 w-48" /> : 'Kunddata Jämförelse'}
@@ -263,8 +263,8 @@ export function ComparisonTableView({
         /* Loading skeletons */
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader className="pb-3">
+            <Card key={i} className="bg-card/80 backdrop-blur">
+              <CardHeader className="pb-3 bg-muted/50">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-8 w-8" />
                   <Skeleton className="h-6 w-32" />
@@ -303,8 +303,8 @@ export function ComparisonTableView({
           {Object.entries(groupedFields).map(([section, sectionFields]) => {
             const sectionDiffs = diffs.filter(d => sectionFields.includes(d.path));
             return (
-              <Card key={section}>
-                <CardHeader className="pb-3">
+              <Card key={section} className="bg-card/80 backdrop-blur border-primary/20">
+                <CardHeader className="pb-3 bg-muted/50">
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -331,11 +331,11 @@ export function ComparisonTableView({
                 </CardHeader>
 
                 {expandedSections.has(section) && (
-                  <CardContent>
+                  <CardContent className="bg-muted/20">
                     <ScrollArea className="h-96">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-accent/50 border-b-2 border-primary/10">
+                          <TableRow className="bg-primary/10 border-b-2 border-primary/20 hover:bg-primary/10">
                             <TableHead className="w-1/6 font-semibold">Fält</TableHead>
                             <TableHead className="w-1/4 font-semibold">Mallvärde</TableHead>
                             <TableHead className="w-1/4 font-semibold">Kundens värde</TableHead>

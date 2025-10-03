@@ -105,13 +105,13 @@ export default function CustomerView() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted/30">
       <Header />
       
       <main className="p-6 max-w-7xl mx-auto">
         <div className="space-y-6">
           {/* Header */}
-          <Card>
+          <Card className="bg-card/80 backdrop-blur">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -158,7 +158,7 @@ export default function CustomerView() {
 
           {/* Diff Summary */}
           {compareData && compareData.diffs.length > 0 && (
-            <Card>
+            <Card className="bg-card/80 backdrop-blur">
               <CardHeader>
                 <CardTitle className="text-lg">Sammanfattning av skillnader</CardTitle>
               </CardHeader>

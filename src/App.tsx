@@ -3,11 +3,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Använd vår MSAL-baserade ProtectedRoute
+import ProtectedRoute from "@/components/ProtectedRoute";
+
 import AdminPanel from "./pages/AdminPanel";
 import CustomerView from "./pages/CustomerView";
 import Login from "./pages/Login";
+import Logout from "./pages/Logout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -16,33 +19,37 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <Toaster />
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} /> 
-            <Route path="/login" element={<Login />} />
+        <Toaster />
+        <Routes>
+          {/* Start → login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminPanel />
-                </ProtectedRoute>
-              }
-            />
+          {/* Publika rutter */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/logout" element={<Logout />} />
 
-            <Route
-              path="/customer"
-              element={
-                <ProtectedRoute requiredRole="customer">
-                  <CustomerView />
-                </ProtectedRoute>
-              }
-            />
+          {/* Skyddade rutter (MSAL) */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+          <Route
+            path="/customer"
+            element={
+              <ProtectedRoute>
+                <CustomerView />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </TooltipProvider>
     </QueryClientProvider>
   );

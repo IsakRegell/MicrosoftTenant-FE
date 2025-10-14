@@ -1,3 +1,4 @@
+// src/pages/CustomerView.tsx
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,24 +7,22 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
-import { CompareResponse, Decision } from '@/types/diff';
-import { compareCheck, compareApply } from '@/services/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { CompareResponse, Decision, UiDecision } from '@/types/diff';
+import { compareCheck, compareApply, toJsonPath } from '@/services/api';
 
 export default function CustomerView() {
-  const { user } = useAuth();
   const [compareData, setCompareData] = useState<CompareResponse>();
-  const [pendingDecisions, setPendingDecisions] = useState<Decision[]>([]);
+  const [pendingDecisions, setPendingDecisions] = useState<UiDecision[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  // For demo purposes, we'll use a default customer ID
-  // In a real app, this would come from the authenticated user's context
-  const customerId = "customer-data"; // This would be determined by the authenticated customer
+  // TODO: Koppla kund-id till inloggad användare (claims/grupp) senare.
+  const customerId = "customer-data";
 
   useEffect(() => {
     loadCompareData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadCompareData = async () => {
@@ -43,23 +42,25 @@ export default function CustomerView() {
     }
   };
 
-  const handleDecision = (decision: Decision) => {
+  const handleDecision = (decision: UiDecision) => {
     setPendingDecisions(prev => {
       const filtered = prev.filter(d => d.path !== decision.path);
+      // 'undo' = rensa val, lägg inte till något
+      if (decision.action === 'undo') return filtered;
       return [...filtered, decision];
     });
   };
 
   const handleApplyAllTemplate = () => {
     if (!compareData) return;
-    
-    const allTemplateDecisions: Decision[] = compareData.diffs.map(diff => ({
-      path: diff.path,
+
+    const allTemplateDecisions: UiDecision[] = compareData.diffs.map(diff => ({
+      path: diff.path,                 // slash-format i UI
       action: "applyTemplate" as const
     }));
-    
+
     setPendingDecisions(allTemplateDecisions);
-    
+
     toast({
       title: "Alla mallvärden valda",
       description: `${allTemplateDecisions.length} ändringar kommer att tillämpas`,
@@ -67,21 +68,33 @@ export default function CustomerView() {
   };
 
   const handleSave = async () => {
-    if (pendingDecisions.length === 0) return;
-    
+    // Bygg beslut för API: ta bort 'undo' och 'keepCustomer' + konvertera path
+    const toSend: Decision[] = pendingDecisions
+      .filter(d => d.action !== 'undo' && d.action !== 'keepCustomer')
+      .map(d => {
+        const base: Decision = {
+          path: toJsonPath(d.path),                   // "/a/b/0" -> "$.a.b[0]"
+          action: d.action as Decision['action'],     // 'applyTemplate' | 'set' | 'remove'
+        };
+        const v = (d as any)?.value;
+        return base.action === 'set' && v !== undefined ? { ...base, value: v } : base;
+      });
+
+    if (toSend.length === 0) return;
+
     setIsSaving(true);
     try {
-      const updatedData = await compareApply(customerId, pendingDecisions);
+      const updatedData = await compareApply(customerId, toSend);
       setCompareData(updatedData);
       setPendingDecisions([]);
-      
+
       toast({
         title: "Sparat",
-        description: `${pendingDecisions.length} ändringar har tillämpats`,
+        description: `${toSend.length} ändringar har tillämpats`,
       });
     } catch (error) {
       toast({
-        title: "Fel vid sparande", 
+        title: "Fel vid sparande",
         description: "Kunde inte spara ändringarna",
         variant: "destructive"
       });
@@ -89,6 +102,9 @@ export default function CustomerView() {
       setIsSaving(false);
     }
   };
+
+  // Räknare för verkliga ändringar (ignorera undo/keepCustomer)
+  const realPendingCount = pendingDecisions.filter(d => d.action !== 'undo' && d.action !== 'keepCustomer').length;
 
   if (isLoading) {
     return (
@@ -107,10 +123,10 @@ export default function CustomerView() {
   return (
     <div className="min-h-screen bg-muted/30">
       <Header />
-      
+
       <main className="p-6 max-w-7xl mx-auto">
         <div className="space-y-6">
-          {/* Header */}
+          {/* Headerkort */}
           <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
               <div className="flex items-center justify-between">
@@ -120,19 +136,19 @@ export default function CustomerView() {
                     Granska skillnader mellan template och din konfiguration
                   </CardDescription>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   {compareData && (
                     <Badge variant="secondary" className="gap-1">
                       {compareData.diffs.length} skillnader
                     </Badge>
                   )}
-                  {pendingDecisions.length > 0 && (
+                  {realPendingCount > 0 && (
                     <Badge variant="outline" className="gap-1">
-                      {pendingDecisions.length} väntande ändringar
+                      {realPendingCount} väntande ändringar
                     </Badge>
                   )}
-                  
+
                   <Button
                     variant="outline"
                     onClick={loadCompareData}
@@ -142,10 +158,10 @@ export default function CustomerView() {
                     <RefreshCw className="h-4 w-4" />
                     Uppdatera
                   </Button>
-                  
+
                   <Button
                     onClick={handleSave}
-                    disabled={pendingDecisions.length === 0 || isSaving}
+                    disabled={realPendingCount === 0 || isSaving}
                     className="gap-2"
                   >
                     <Save className="h-4 w-4" />
@@ -156,7 +172,7 @@ export default function CustomerView() {
             </CardHeader>
           </Card>
 
-          {/* Diff Summary */}
+          {/* Diff-sammanfattning */}
           {compareData && compareData.diffs.length > 0 && (
             <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
@@ -165,18 +181,20 @@ export default function CustomerView() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {compareData.diffs.map((diff, index) => (
-                    <Badge 
-                      key={index} 
+                    <Badge
+                      key={index}
                       variant="outline"
                       className="gap-1"
                     >
-                      <div className={`w-2 h-2 rounded-full ${
-                        diff.type === 'typeMismatch' ? 'bg-diff-type-mismatch' :
-                        diff.type === 'valueMismatch' ? 'bg-diff-value-mismatch' :
-                        diff.type === 'missing' ? 'bg-diff-missing' :
-                        diff.type === 'unexpected' ? 'bg-diff-unexpected' :
-                        'bg-diff-length-mismatch'
-                      }`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          diff.type === 'typeMismatch' ? 'bg-diff-type-mismatch' :
+                          diff.type === 'valueMismatch' ? 'bg-diff-value-mismatch' :
+                          diff.type === 'missing' ? 'bg-diff-missing' :
+                          diff.type === 'unexpected' ? 'bg-diff-unexpected' :
+                          'bg-diff-length-mismatch'
+                        }`}
+                      />
                       {diff.path} ({diff.type})
                     </Badge>
                   ))}
@@ -185,7 +203,7 @@ export default function CustomerView() {
             </Card>
           )}
 
-          {/* Comparison Table View */}
+          {/* Tabellvy */}
           {compareData && (
             <ComparisonTableView
               template={compareData.template}

@@ -14,12 +14,13 @@ import { CustomerListItem } from '@/types/customer';
 
 // API-funktioner
 import {
-  compareApply,
-  compareCheck,        // diffar mot payload i minnet
-  getLatestPayload,     // hämtar senaste inskickade payload
-  getActualPayload,    // hämtar sparad payload från DB
-  CompareSavedResponse,
-  getTemplate,
+applyAndWait,        
+toJsonPath,          
+compareCheck,
+getLatestPayload,
+getPayload,
+CompareSavedResponse,
+getTemplate,
 } from '@/services/api';
 
 import { listCustomers } from '@/services/customers';
@@ -116,7 +117,7 @@ function setValueAtPath(obj: any, path: string, value: any) {
     // 1) Primär källa: SPARAD payload i DB
     let latestBody: any;
     try {
-      const actual = await getActualPayload(selectedCustomerId);
+      const actual = await getPayload(selectedCustomerId);
       latestBody = actual.body; // ✅ sanning från DB
     } catch {
       // 2) Fallback: senaste logg (om ingen sparad än)
@@ -197,51 +198,58 @@ function setValueAtPath(obj: any, path: string, value: any) {
   };
 
   const handleSave = async () => {
-  if (!selectedCustomerId || !compareData) return;
+  if (!selectedCustomerId) return;
 
-  // 1) Skicka endast giltiga beslut
+  // 1) Bygg beslut (filtrera bort 'undo' + konvertera path till JSONPath)
   const toSend: Decision[] = pendingDecisions
-    .filter(d => d.action !== 'undo')
-    .map(d => ({ path: d.path, action: d.action as Decision['action'] }));
+  .filter(d => d.action !== 'undo' && d.action !== 'keepCustomer') // 👈 nytt
+  .map(d => {
+    const base: Decision = {
+      path: toJsonPath(d.path),
+      action: d.action as Decision['action'],
+    };
+    const v = (d as any)?.value;
+    return base.action === 'set' && v !== undefined ? { ...base, value: v } : base;
+  });
 
-  if (toSend.length === 0) return;
+if (toSend.length === 0) {
+  toast({ title: 'Inget att spara', description: 'Välj ändringar först.' });
+  return;
+}
+
 
   setIsSaving(true);
   try {
-    // 2) Kör backend-apply och skicka med EXAKT kundobjektet du ser i UI
-    await compareApply(selectedCustomerId, toSend, compareData.customerData);
+    // 2) Skicka till backend och vänta (applied/failed/pending)
+    const res = await applyAndWait(
+      selectedCustomerId,
+      toSend,
+      /* correlationId */ undefined,
+      /* dryRun */ false
+    );
 
-    // 3) Läs tillbaka den sparade payloaden från BE (källa av sanning)
-    const { body: saved } = await getActualPayload(selectedCustomerId);
-
-    // 4) Diffa mot template utan loggning
-    const result = await compareCheck(selectedCustomerId, saved, undefined, { log: false });
-
-    // 5) Uppdatera vyn med det som faktiskt ligger i DB
-    setCompareData({
-      status: result.status,
-      diffs: result.diffs as DiffItem[],
-      template: result.template,
-      customerData: saved,
-    });
-
+    // 3) Ladda om data i vyn (hämtar DB/logg + diffar om)
+    await loadCompareData();
     setPendingDecisions([]);
 
-    toast({
-      title: 'Sparat',
-      description: 'Ändringarna har sparats i databasen och vyn visar nu den sparade payloaden.',
-    });
-  } catch (error) {
+    // 4) Feedback
+    if (res.status === 'applied') {
+      toast({ title: 'Sparat', description: 'Ändringar tillämpade i Azure.' });
+    } else if (res.status === 'failed') {
+      toast({ title: 'Misslyckades', description: res.error ?? 'Okänt fel.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Skickat', description: 'Ändringarna är skickade (pending).' });
+    }
+  } catch (e: any) {
     toast({
       title: 'Fel vid sparande',
-      description: 'Kunde inte spara ändringarna',
+      description: e?.message ?? 'Kunde inte spara ändringarna.',
       variant: 'destructive',
     });
   } finally {
     setIsSaving(false);
   }
 };
-
 
 
   // ======================
@@ -373,12 +381,12 @@ function setValueAtPath(obj: any, path: string, value: any) {
 
                         {pendingDecisions.length > 0 && (
                           <Badge variant="outline">
-                            {pendingDecisions.length} väntande ändringar
+                            {pendingDecisions.filter(d => d.action !== 'undo' && d.action !== 'keepCustomer').length} väntande ändringar
                           </Badge>
                         )}
                         <Button
                           onClick={handleSave}
-                          disabled={pendingDecisions.filter(d => d.action !== 'undo').length === 0 || isSaving}
+                          disabled={pendingDecisions.filter(d => d.action !== 'undo' && d.action !== 'keepCustomer').length === 0 || isSaving}
                           className="gap-2"
                         >
                           <Save className="h-4 w-4" />

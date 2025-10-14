@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PanelLeftClose, PanelLeftOpen, Users, Building2, Trash2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -6,11 +6,20 @@ import { cn } from "@/lib/utils";
 import type { CustomerListItem } from "@/types/customer";
 import { getActiveCustomers, getInactiveCustomers } from "@/services/customers";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { Input } from "@/components/ui/input";
 
 interface SidebarProps {
   selectedCustomerId?: string;
   onCustomerSelect: (customerId: string) => void;
 }
+
+function norm(s: string) {
+  return s
+    .toLocaleLowerCase("sv")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, ""); 
+}
+
 
 export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -27,6 +36,9 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
   // confirm-dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toDelete, setToDelete] = useState<CustomerListItem | null>(null);
+
+  // SÖKNING
+  const [search, setSearch] = useState("");
 
   // Hämta aktiva direkt
   useEffect(() => {
@@ -110,6 +122,19 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
     }
   };
 
+  const filteredActive = useMemo(() => {
+    if (!search) return activeCustomers;
+    const n = norm(search);
+    return activeCustomers.filter(c => norm(c.name).startsWith(n));
+  }, [activeCustomers, search]);
+
+  const filteredInactive = useMemo(() => {
+    if (!search) return inactiveCustomers;
+    const n = norm(search);
+    return inactiveCustomers.filter(c => norm(c.name).startsWith(n));
+  } , [inactiveCustomers, search]);
+
+
   return (
     <div
       className={cn(
@@ -144,6 +169,16 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
             {!isCollapsed && <span className="font-medium">Kunder</span>}
           </div>
         )}
+        <div className="p-3">
+          <label htmlFor="customer-search" className="sr-only">Sök kund</label>
+          <Input
+            id="customer-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Sök kund…"
+          />
+        </div>
+
 
         {/* Filter */}
         {!isCollapsed && (
@@ -161,7 +196,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
             <div>
               <div className="text-xs font-semibold text-muted-foreground mb-1">Aktiva</div>
               <div className="space-y-1">
-                {activeCustomers.map((c) => (
+                {filteredActive.map((c) => (
                   <div key={c.id} className="flex items-center gap-1">
                     <Button
                       variant={c.id === selectedCustomerId ? "secondary" : "ghost"}
@@ -200,7 +235,7 @@ export function Sidebar({ selectedCustomerId, onCustomerSelect }: SidebarProps) 
                     <div className="text-xs text-muted-foreground">Laddar inaktiva…</div>
                   ) : (
                     <>
-                      {inactiveCustomers.map((c) => (
+                      {showInactive && filteredInactive.map((c) => (
                         <div key={c.id} className="flex items-center gap-1">
                           <Button
                             variant={c.id === selectedCustomerId ? "secondary" : "ghost"}

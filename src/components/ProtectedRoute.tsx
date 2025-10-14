@@ -1,22 +1,18 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types/auth';
+// src/ProtectedRoute.tsx
+// Skydda routes med MSAL (inte ditt gamla AuthContext).
+// OBS: Inga route-deklarationer här.
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requiredRole?: UserRole;
-}
+import { Navigate, useLocation } from "react-router-dom";
+import { useIsAuthenticated } from "@azure/msal-react";
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, isAuthenticated } = useAuth();
+type Props = { children: React.ReactNode };
+
+export default function ProtectedRoute({ children }: Props) {
+  const isAuthenticated = useIsAuthenticated();
+  const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (requiredRole && user?.role !== requiredRole) {
-    const redirectTo = user?.role === 'admin' ? '/admin' : '/customer';
-    return <Navigate to={redirectTo} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

@@ -1,25 +1,35 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserCheck, Settings } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types/auth';
+// src/pages/Login.tsx
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserCheck, Settings } from "lucide-react";
+import { useMsal, useIsAuthenticated } from "@azure/msal-react";
+import { baseLoginRequest } from "@/auth/msalConfig";
 
 export default function Login() {
-  const { login, isAuthenticated, user } = useAuth();
+  const { instance } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  if (isAuthenticated) {
-    const redirectTo = user?.role === 'admin' ? '/admin' : '/customer';
-    return <Navigate to={redirectTo} replace />;
-  }
+  // Navigera vidare EN gång när man blir inloggad (ingen <Navigate/> i render)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/admin", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
-  const handleLogin = async (role: UserRole) => {
+  const handleLogin = async () => {
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    login(role);
-    setIsLoading(false);
+    try {
+      await instance.loginPopup(baseLoginRequest);
+    } catch (err) {
+      console.error("Login failed:", err);
+      alert("Inloggning misslyckades. Se konsolen för detaljer.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,14 +43,11 @@ export default function Login() {
         <Card className="shadow-strong border-0">
           <CardHeader className="text-center">
             <CardTitle>Välj din roll</CardTitle>
-            <CardDescription>
-              {/* TODO: Entra ID integration placeholder */}
-              Logga in med din företagsidentitet
-            </CardDescription>
+            <CardDescription>Logga in med din företagsidentitet</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
-              onClick={() => handleLogin('admin')}
+              onClick={handleLogin}
               disabled={isLoading}
               className="w-full h-12 bg-gradient-primary hover:bg-primary-hover transition-all duration-200"
               size="lg"
@@ -50,7 +57,7 @@ export default function Login() {
             </Button>
 
             <Button
-              onClick={() => handleLogin('customer')}
+              onClick={handleLogin}
               disabled={isLoading}
               variant="outline"
               className="w-full h-12"
@@ -61,18 +68,15 @@ export default function Login() {
             </Button>
 
             {isLoading && (
-              <div className="text-center text-sm text-muted-foreground">
-                Loggar in...
-              </div>
+              <div className="text-center text-sm text-muted-foreground">Loggar in...</div>
             )}
           </CardContent>
         </Card>
 
         <div className="text-center mt-6 text-white/60 text-sm">
-          {/* TODO: Replace with real Entra ID login flow */}
           <div className="bg-white/10 rounded-lg p-3 border border-white/20">
-            <div className="font-medium mb-1">🚧 Utvecklingsläge</div>
-            <div>Entra ID-integration kommer implementeras</div>
+            <div className="font-medium mb-1">Entra ID aktivt</div>
+            <div>Popupen öppnas vid klick.</div>
           </div>
         </div>
       </div>

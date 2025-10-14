@@ -1,5 +1,9 @@
-// src/services/api.ts
-import type { DiffItem, CompareResponse, Decision } from "@/types/diff";
+import type {
+  DiffItem,
+  CompareResponse,
+  Decision,
+  ChangeSetResult,
+} from "@/types/diff";
 
 // 1) Bas-URL (från .env). Tar bort ev. trailing slash.
 const BASE =
@@ -13,7 +17,16 @@ const toSlashPath = (p: string): string =>
     .replace(/\[(\d+)\]/g, "/$1") // [0] → /0
     .replace(/\./g, "/");         // "." → "/"
 
-// 3) Liten fetch-helper med bättre felutskrifter (används där vi INTE vill tillåta 404)
+// ⬇️ NY: FE(slash) → Server(JSONPath) = behövs när vi skickar beslut till backend
+export const toJsonPath = (s: string): string =>
+  "$." +
+  (s || "")
+    .replace(/^\/+/, "")                 // "/a/b" -> "a/b"
+    .replace(/\/(\d+)(?=\/|$)/g, "[$1]") // /0 -> [0]
+    .replace(/\//g, ".")                 // a/b -> a.b
+    .replace(/\.\[/g, "[");              // .[ -> [
+
+/** Intern liten fetch-helper (använd där vi INTE vill tillåta 404) */
 async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
   if (!res.ok) {
@@ -45,6 +58,7 @@ function normalize(server: any): CompareResponse {
     status: server?.status ?? (diffs.length ? "differences" : "ok"),
   };
 }
+
 
 // ----------------------------------------------------------------------
 // PUBLIC API
@@ -133,20 +147,16 @@ export async function compareCheck(
 }
 
 /**
- * Applicera beslut.
- * Rätt endpoint: POST /Compare/apply?customerId=...
- * Body: [{ path, action }]
- * Return: 204 NoContent eller ev. { ...result }
+ * (Gammal) Applicera beslut – OBS: behåll om andra vyer använder den,
+ * men för nya backendflödet använd applyDecisions/applyAndWait nedan.
  */
 export async function compareApply(
   customerId: string,
   decisions: Decision[],
-  payload?: Record<string, unknown>, // (om din BE vill få med payload samtidigt)
+  payload?: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<CompareResponse> {
   const url = `${BASE}/Compare/apply?customerId=${encodeURIComponent(customerId)}`;
-
-  // Skicka bara decisions som BE behöver; inkludera payload om den stöds
   const body = payload ? { decisions, payload } : decisions;
 
   const res = await fetch(url, {
@@ -161,22 +171,31 @@ export async function compareApply(
     throw new Error(`Apply failed: ${res.status} ${res.statusText}\n${text}`);
   }
 
-  // Kan vara 204 NoContent
   try {
     const server = await res.json();
     return normalize(server);
   } catch {
-    // Ingen body → returnera en tom-normaliserad respons
     return normalize({});
   }
 }
 
 // 1. Hämta sparad payload för en kund (din tidigare payloads-controller)
+// ersätt hela getPayload med detta
 export async function getPayload(customerId: string) {
-  const res = await fetch(`${BASE}/api/payloads/by-customer?customerId=${encodeURIComponent(customerId)}`);
-  if (!res.ok) throw new Error(`getPayload ${res.status}`);
-  return res.json() as Promise<{ customerId: string; body: unknown; updatedAt?: string }>;
+  try {
+    const latest = await getLatestPayload(customerId); // använder /Compare/latest-payload
+    return {
+      customerId,
+      body: latest.body ?? {},
+      // ge tillbaka ett "updatedAt"-liknande fält för kompatibilitet
+      updatedAt: latest.updatedAt ?? latest.asOfUtc,
+    };
+  } catch {
+    // Om kunden ännu inte har någon loggad payload (404), returnera tomt
+    return { customerId, body: {}, updatedAt: undefined };
+  }
 }
+
 
 // 2. Spara/Uppdatera payload för en kund.
 export async function savePayload(customerId: string, body: unknown) {
@@ -204,7 +223,6 @@ export type CompareSavedResponse = {
   customerData: any;  // DB-/logg-payload
 };
 
-// (finns kvar om du använder den i andra vyer)
 export async function compareSaved(customerId: string): Promise<CompareSavedResponse> {
   const res = await fetch(`${BASE}/Compare/check-saved?customerId=${encodeURIComponent(customerId)}`, {
     method: "POST",
@@ -251,11 +269,57 @@ export async function getLatestPayload(
   return { body, asOfUtc, createdUtc, updatedAt };
 }
 
-export async function getActualPayload(customerId: string): Promise<{ body: any; updatedAt?: string }> {
-  const res = await fetch(`${BASE}/Compare/actual-payload?customerId=${encodeURIComponent(customerId)}`, {
-    headers: { Accept: 'application/json' },
+
+/* --------------------------------------------------------------------
+   Nya endpoints för det "riktiga" apply-flödet (PendingChanges/DSC)
+---------------------------------------------------------------------*/
+
+// Skicka FE-beslut till backend (/Compare/apply). Backend returnerar changeSetId + status.
+export async function applyDecisions(
+  customerId: string,
+  decisions: Decision[],
+  correlationId?: string,
+  dryRun = false
+): Promise<ChangeSetResult> {
+  const res = await fetch(`${BASE}/Compare/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ customerId, correlationId, dryRun, decisions }),
   });
-  if (!res.ok) throw new Error(`getActualPayload ${res.status}`);
-  const data = await res.json();
-  return { body: data?.body ?? {}, updatedAt: data?.updatedAt };
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`apply failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ChangeSetResult>;
+}
+
+// Läs status på ett specifikt change set (GET /changes/{id})
+export async function getChangeSetStatus(changeSetId: string): Promise<ChangeSetResult> {
+  const res = await fetch(`${BASE}/changes/${changeSetId}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`status failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ChangeSetResult>;
+}
+
+// (Valfritt) Skicka beslut OCH vänta tills DSC kvitterat applied/failed (max timeoutMs)
+export async function applyAndWait(
+  customerId: string,
+  decisions: Decision[],
+  correlationId?: string,
+  dryRun = false,
+  timeoutMs = 15000
+): Promise<ChangeSetResult> {
+  const start = await applyDecisions(customerId, decisions, correlationId, dryRun);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 1000));
+    const s = await getChangeSetStatus(start.changeSetId);
+    if (s.status === "applied" || s.status === "failed") return s;
+  }
+  return start; // fortfarande pending
 }

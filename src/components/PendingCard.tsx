@@ -1,53 +1,59 @@
 import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type { ChangeCardDto } from "@/types/changes";
 
 type Props = {
-  item: ChangeCardDto;              // datat till kortet
-  onOpen: (id: string) => void;     // vad som händer när man klickar "Visa detaljer"
+  item: ChangeCardDto;
+  onOpen: (id: string) => void;
 };
 
 export default function PendingCard({ item, onOpen }: Props) {
-  const badge =
+  const badgeVariant =
     item.status === "applied"
-      ? "bg-green-500/20 text-green-300"
+      ? "default"
       : item.status === "failed"
-      ? "bg-red-500/20 text-red-300"
-      : "bg-yellow-500/20 text-yellow-300";
+      ? "destructive"
+      : "secondary";
 
   return (
-    <div className="rounded-2xl bg-neutral-800/60 p-4 shadow">
-      {/* överrad */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm opacity-80">{item.customerId}</div>
-        <span className={`text-xs px-2 py-1 rounded-full ${badge}`}>{item.status}</span>
-      </div>
+    <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <CardContent className="p-4 space-y-3">
+        {/* överrad */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">{item.customerId}</div>
+          <Badge variant={badgeVariant}>{item.status}</Badge>
+        </div>
 
-      {/* tider */}
-      <div className="mt-2 text-xs opacity-70">
-        <div>Created: {new Date(item.createdUtc).toLocaleString()}</div>
-        {item.appliedUtc && <div>Applied: {new Date(item.appliedUtc).toLocaleString()}</div>}
-      </div>
+        {/* tider */}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div>Created: {new Date(item.createdUtc).toLocaleString()}</div>
+          {item.appliedUtc && <div>Applied: {new Date(item.appliedUtc).toLocaleString()}</div>}
+        </div>
 
-      {/* decisions teaser */}
-      <div className="mt-3 space-y-1">
-        {item.decisions.map((d, i) => (
-          <div key={i} className="text-sm font-mono truncate">
-            {d.action} → <span className="opacity-90">{d.path}</span>
-          </div>
-        ))}
-        {item.decisionCount > item.decisions.length && (
-          <div className="text-xs opacity-60">
-            + {item.decisionCount - item.decisions.length} fler…
-          </div>
-        )}
-      </div>
+        {/* decisions teaser */}
+        <div className="space-y-1 bg-muted/20 rounded-lg p-2">
+          {item.decisions.map((d, i) => (
+            <div key={i} className="text-sm font-mono truncate">
+              {d.action} → <span className="text-muted-foreground">{d.path}</span>
+            </div>
+          ))}
+          {item.decisionCount > item.decisions.length && (
+            <div className="text-xs text-muted-foreground">
+              + {item.decisionCount - item.decisions.length} fler…
+            </div>
+          )}
+        </div>
 
-      <button
-        onClick={() => onOpen(item.id)}
-        className="mt-3 w-full rounded-xl border border-neutral-600 px-3 py-2 text-sm hover:bg-neutral-700"
-      >
-        Visa detaljer
-      </button>
-    </div>
+        <Button
+          onClick={() => onOpen(item.id)}
+          variant="outline"
+          className="w-full"
+        >
+          Visa detaljer
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

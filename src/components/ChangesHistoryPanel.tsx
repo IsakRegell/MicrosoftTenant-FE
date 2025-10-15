@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import PendingCard from "@/components/PendingCard";
 import type { ChangeCardDto } from "@/types/changes";
 import { fetchChangeCards, fetchChangeById } from "@/services/api";
@@ -55,23 +57,26 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       {/* header + refresh */}
       <div className="flex items-center justify-between">
-        <div className="text-sm opacity-70">
+        <div className="text-sm text-muted-foreground">
           {total > 0 ? `${total} ändringar` : "Inga ändringar ännu"}
         </div>
-        <button
+        <Button
           onClick={load}
-          className="rounded-xl border border-neutral-600 px-3 py-2 text-sm hover:bg-neutral-800"
+          variant="outline"
+          className="gap-2"
+          disabled={loading}
         >
+          <RefreshCw className="h-4 w-4" />
           Uppdatera historik
-        </button>
+        </Button>
       </div>
 
       {/* states */}
-      {loading && <div className="opacity-70 text-sm">Laddar…</div>}
-      {error && <div className="text-sm text-red-300">{error}</div>}
+      {loading && <div className="text-sm text-muted-foreground">Laddar…</div>}
+      {error && <div className="text-sm text-destructive">{error}</div>}
 
       {/* grid med kort */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { RefreshCw, X } from "lucide-react";
 import PendingCard from "@/components/PendingCard";
 import type { ChangeCardDto } from "@/types/changes";
 import { fetchChangeCards, fetchChangeById } from "@/services/api";
@@ -86,47 +95,100 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
       </div>
 
       {/* popup med detaljer */}
-      {openId && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-neutral-900 p-5">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg">Change {openId}</h2>
-              <button
-                onClick={() => { setOpenId(null); setDetails(null); }}
-                className="px-3 py-1 rounded-xl border border-neutral-600 hover:bg-neutral-800"
-              >
-                Stäng
-              </button>
+      <Dialog open={!!openId} onOpenChange={(open) => { if (!open) { setOpenId(null); setDetails(null); }}}>
+        <DialogContent className="max-w-2xl bg-gradient-to-br from-card/95 to-card/85 backdrop-blur-sm border-primary/30">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl">Change Details</DialogTitle>
+              <Badge variant="secondary" className="text-xs font-mono">
+                {openId}
+              </Badge>
             </div>
+          </DialogHeader>
 
-            {detailsLoading && <div className="mt-3 text-sm opacity-70">Hämtar detaljer…</div>}
-            {!detailsLoading && details && (
-              <div className="mt-3 space-y-3">
-                {details.error && <div className="text-sm text-red-300">{details.error}</div>}
-
-                <div className="text-sm opacity-80">
-                  <div>Kund: {details.customerId}</div>
-                  <div>Status: {details.status}</div>
-                  <div>Created: {new Date(details.createdUtc).toLocaleString()}</div>
-                  {details.appliedUtc && <div>Applied: {new Date(details.appliedUtc).toLocaleString()}</div>}
-                  {details.error && <div className="text-red-300">Error: {details.error}</div>}
-                </div>
-
-                <div>
-                  <div className="text-sm mb-2 opacity-70">Decisions:</div>
-                  <div className="space-y-1 max-h-72 overflow-auto">
-                    {(details.decisions ?? []).map((d: any, i: number) => (
-                      <div key={i} className="rounded-lg bg-neutral-800/60 p-2 font-mono text-sm">
-                        {d.action} → {d.path}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          <div className="space-y-4 mt-4">
+            {detailsLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             )}
+
+            {!detailsLoading && details && (
+              <>
+                {details.error && (
+                  <Card className="bg-destructive/10 border-destructive/30">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-destructive">{details.error}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-muted/30 border-primary/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Kund:</span>
+                      <span className="font-medium">{details.customerId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge 
+                        variant={
+                          details.status === "applied" ? "default" : 
+                          details.status === "failed" ? "destructive" : 
+                          "secondary"
+                        }
+                      >
+                        {details.status}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Created:</span>
+                      <span className="font-mono text-xs">{new Date(details.createdUtc).toLocaleString()}</span>
+                    </div>
+                    {details.appliedUtc && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Applied:</span>
+                        <span className="font-mono text-xs">{new Date(details.appliedUtc).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-muted/30 border-primary/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Decisions ({(details.decisions ?? []).length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                      {(details.decisions ?? []).map((d: any, i: number) => (
+                        <div 
+                          key={i} 
+                          className="rounded-lg bg-gradient-to-r from-muted/60 to-muted/40 p-3 font-mono text-sm border border-primary/10"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {d.action}
+                            </Badge>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="flex-1 truncate">{d.path}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

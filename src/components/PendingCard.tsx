@@ -18,7 +18,7 @@ export default function PendingCard({ item, onOpen }: Props) {
       : "secondary";
 
   return (
-    <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+    <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-primary/30 shadow-lg">
       <CardContent className="p-4 space-y-3">
         {/* överrad */}
         <div className="flex items-center justify-between">
@@ -49,7 +49,7 @@ export default function PendingCard({ item, onOpen }: Props) {
         <Button
           onClick={() => onOpen(item.id)}
           variant="outline"
-          className="w-full"
+          className="w-full transition-all hover:scale-105"
         >
           Visa detaljer
         </Button>

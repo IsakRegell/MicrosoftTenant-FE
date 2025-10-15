@@ -23,6 +23,7 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "pending" | "applied" | "failed">("all");
 
   // popup-state
   const [openId, setOpenId] = useState<string | null>(null);
@@ -34,10 +35,10 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
       setLoading(true);
       setError(null);
       const res = await fetchChangeCards({
-        customerId,         // visar bara denna kund
+        customerId,
         page: 1,
         pageSize: 20,
-        // status: undefined   // visa alla status; sätt "pending" om du vill filtrera
+        status: filter === "all" ? undefined : filter,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -48,7 +49,7 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
     }
   }
 
-  useEffect(() => { load(); }, [customerId]);
+  useEffect(() => { load(); }, [customerId, filter]);
 
   // öppna popup och hämta detaljer
   async function openDetails(id: string) {
@@ -80,6 +81,42 @@ export default function ChangesHistoryPanel({ customerId }: Props) {
         >
           <RefreshCw className="h-4 w-4" />
           Uppdatera historik
+        </Button>
+      </div>
+
+      {/* filter buttons */}
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          onClick={() => setFilter("all")}
+          variant={filter === "all" ? "default" : "outline"}
+          size="sm"
+          className="transition-all"
+        >
+          Alla
+        </Button>
+        <Button
+          onClick={() => setFilter("applied")}
+          variant={filter === "applied" ? "default" : "outline"}
+          size="sm"
+          className="transition-all"
+        >
+          Applied
+        </Button>
+        <Button
+          onClick={() => setFilter("pending")}
+          variant={filter === "pending" ? "default" : "outline"}
+          size="sm"
+          className="transition-all"
+        >
+          Pending
+        </Button>
+        <Button
+          onClick={() => setFilter("failed")}
+          variant={filter === "failed" ? "default" : "outline"}
+          size="sm"
+          className="transition-all"
+        >
+          Failed
         </Button>
       </div>
 

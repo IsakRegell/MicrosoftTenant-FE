@@ -1,3 +1,4 @@
+import type { ChangeListResponse } from "@/types/changes";
 import type {
   DiffItem,
   CompareResponse,
@@ -322,4 +323,44 @@ export async function applyAndWait(
     if (s.status === "applied" || s.status === "failed") return s;
   }
   return start; // fortfarande pending
+}
+
+
+// ⬇️ NYTT: hämta cards (grid med små kort)
+export async function fetchChangeCards(opts: {
+  customerId?: string;
+  status?: "pending" | "applied" | "failed";
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<ChangeListResponse> {
+  const qs = new URLSearchParams();
+  if (opts.customerId) qs.set("customerId", opts.customerId);
+  if (opts.status) qs.set("status", opts.status);
+  if (opts.page) qs.set("page", String(opts.page));
+  if (opts.pageSize) qs.set("pageSize", String(opts.pageSize));
+
+  const url = `${BASE}/changes/cards${qs.toString() ? `?${qs}` : ""}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET /changes/cards failed: ${res.status} ${text}`);
+  }
+
+  return res.json() as Promise<ChangeListResponse>;
+}
+
+// ⬇️ NYTT: hämta fulla detaljer för popup (använder din befintliga GET /changes/{id})
+export async function fetchChangeById(id: string) {
+  const url = `${BASE}/changes/${encodeURIComponent(id)}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET /changes/${id} failed: ${res.status} ${text}`);
+  }
+  return res.json(); // innehåller: changeSetId, customerId, status, createdUtc, appliedUtc, error, decisions[]
 }

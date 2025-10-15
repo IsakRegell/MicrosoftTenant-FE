@@ -11,6 +11,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
 import type { DiffItem, Decision, UiDecision } from '@/types/diff';
 import { CustomerListItem } from '@/types/customer';
+import ChangesHistoryPanel from '@/components/ChangesHistoryPanel';
 
 // API-funktioner
 import {
@@ -507,34 +508,18 @@ if (toSend.length === 0) {
                 </TabsContent>
 
                 <TabsContent value="history" className="mt-6">
-                  <div className="flex justify-end mb-4">
-                    <Button
-                      onClick={() => { /* TODO: Load history data */ }}
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Uppdatera historik
-                    </Button>
-                  </div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <History className="h-5 w-5" />
-                        Ändringshistorik
-                      </CardTitle>
-                      <CardDescription>
-                        Här kommer du att kunna se alla ändringar som har gjorts för denna kund
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center py-8">
-                      <div className="text-muted-foreground">
-                        Ändringshistorik kommer att implementeras när databasen är ansluten
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {!selectedCustomerId ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Välj kund</CardTitle>
+                        <CardDescription>Ändringshistorik visas när en kund är vald.</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ) : (
+                    <ChangesHistoryPanel customerId={selectedCustomerId} />
+                  )}
                 </TabsContent>
+
               </Tabs>
             </div>
           )}

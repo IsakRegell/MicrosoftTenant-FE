@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import type { ChangeCardDto } from "@/types/changes";
 
@@ -41,9 +41,6 @@ export default function PendingCard({ item, onOpen }: Props) {
               <span className="font-medium text-foreground">
                 {format(createdDate, "d MMM, HH:mm", { locale: sv })}
               </span>
-              <span className="text-muted-foreground/70">
-                {formatDistanceToNow(createdDate, { addSuffix: true, locale: sv })}
-              </span>
             </div>
           </div>
           {appliedDate && (
@@ -53,9 +50,6 @@ export default function PendingCard({ item, onOpen }: Props) {
                 <span className="text-muted-foreground">Tillämpad</span>
                 <span className="font-medium text-foreground">
                   {format(appliedDate, "d MMM, HH:mm", { locale: sv })}
-                </span>
-                <span className="text-muted-foreground/70">
-                  {formatDistanceToNow(appliedDate, { addSuffix: true, locale: sv })}
                 </span>
               </div>
             </div>

@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, Building2, Mail, Hash, History, RefreshCw, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { Sidebar } from '@/components/Sidebar';
 import { ComparisonTableView } from '@/components/ComparisonTableView';
 import type { DiffItem, Decision, UiDecision } from '@/types/diff';
@@ -526,14 +527,7 @@ if (toSend.length === 0) {
         </main>
       </div>
 
-      {/* Footer för extra scroll-space */}
-      <footer className="border-t bg-card/50 backdrop-blur-sm py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-center text-sm text-muted-foreground">
-            <p>Diff Sync Admin Panel</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

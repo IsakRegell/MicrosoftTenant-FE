@@ -7,11 +7,14 @@ import "./index.css";
 //Import MSAL provider och våran instans
 import { MsalProvider } from "@azure/msal-react";
 import { pca } from "./auth/msalConfig";
+import { ThemeProvider } from "next-themes";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <MsalProvider instance={pca}>
-    <RouterProvider router={router} />
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </MsalProvider>
   </React.StrictMode>
 );

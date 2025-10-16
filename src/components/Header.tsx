@@ -2,8 +2,9 @@
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Moon, Sun } from "lucide-react";
 import DbStatusIcon from "@/components/DbStatusIcon";
+import { useTheme } from "next-themes";
 
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { baseLoginRequest } from "@/auth/msalConfig";
@@ -11,6 +12,7 @@ import { baseLoginRequest } from "@/auth/msalConfig";
 export function Header() {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+  const { theme, setTheme } = useTheme();
 
   // Hämta namn/e-post från MSAL-kontot (ID-token)
   const name = accounts[0]?.name ?? "";
@@ -25,6 +27,10 @@ export function Header() {
     await instance.loginPopup(baseLoginRequest);
     // valfritt: navigera vidare efter login om header syns på publika sidor
     // navigate("/admin", { replace: true });
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -43,6 +49,20 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleTheme}
+          className="text-muted-foreground hover:text-foreground"
+          title={theme === "dark" ? "Ljust läge" : "Mörkt läge"}
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+
         {isAuthenticated ? (
           <>
             <div className="text-right hidden sm:block">
